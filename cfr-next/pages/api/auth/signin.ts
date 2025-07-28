@@ -10,25 +10,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end();
   const { email, password } = req.body;
   try {
-    // Check if user exists in Cognito
-    const { AdminGetUserCommand } = await import('@aws-sdk/client-cognito-identity-provider');
-    try {
-      await cognitoClient.send(new AdminGetUserCommand({
-        UserPoolId: COGNITO_USER_POOL_ID,
-        Username: email
-      }));
-    } catch (err: unknown) {
-      if (
-        typeof err === 'object' &&
-        err !== null &&
-        'name' in err &&
-        (err as { name: string }).name === 'UserNotFoundException'
-      ) {
-        return res.status(404).json({ error: "You don't have an account. Please sign up first." });
-      }
-      throw err;
-    }
-
     const command = new AdminInitiateAuthCommand({
       UserPoolId: COGNITO_USER_POOL_ID,
       ClientId: COGNITO_CLIENT_ID,
