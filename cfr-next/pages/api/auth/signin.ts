@@ -17,8 +17,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         UserPoolId: COGNITO_USER_POOL_ID,
         Username: email
       }));
-    } catch (err: any) {
-      if (err.name === 'UserNotFoundException') {
+    } catch (err: unknown) {
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'name' in err &&
+        (err as { name: string }).name === 'UserNotFoundException'
+      ) {
         return res.status(404).json({ error: "You don't have an account. Please sign up first." });
       }
       throw err;
