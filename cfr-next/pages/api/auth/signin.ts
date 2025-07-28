@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Decode idToken to get user attributes
     interface DecodedIdToken {
       given_name?: string;
-      [key: string]: any;
+      [key: string]: string | undefined;
     }
     let attributes: DecodedIdToken = {};
     try {

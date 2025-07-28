@@ -39,7 +39,7 @@ export default function ManagePhotos() {
       .then(data => {
         const arr = Array.isArray(data) ? data : data.photos;
         setPhotos(
-          arr.map((p: any) => ({ ...p, key: p.url.split('.com/')[1] }))
+          arr.map((p: Photo) => ({ ...p, key: p.url.split('.com/')[1] }))
         );
       })
       .catch(() => toast.error('Failed to load photos'))

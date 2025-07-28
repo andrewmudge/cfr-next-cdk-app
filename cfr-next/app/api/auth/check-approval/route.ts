@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     const approved = await checkUserApprovalServer(email);
     return NextResponse.json({ approved });
-  } catch (error: any) {
-    return NextResponse.json({ approved: false, error: error?.message || 'Unknown error' }, { status: 500 });
+  } catch (error: unknown) {
+    let message = 'Unknown error';
+    if (error instanceof Error) message = error.message;
+    return NextResponse.json({ approved: false, error: message }, { status: 500 });
   }
 }

@@ -64,16 +64,24 @@ export const getAllUsers = async (): Promise<UserStatus[]> => {
       throw new Error('Failed to fetch approved emails');
     }
     const approvedUsers = await response.json();
-    const approvedEmails = approvedUsers.map((u: any) => u.email?.toLowerCase());
+    const approvedEmails = approvedUsers.map((u: { email: string }) => u.email?.toLowerCase());
 
     // 3. Merge: For each Cognito user, set status based on DynamoDB
-    const mergedUsers: UserStatus[] = cognitoUsers.map((user: any) => {
+    type CognitoUser = {
+      username: string;
+      email: string;
+      givenName: string;
+      familyName: string;
+      phoneNumber: string;
+      userCreateDate?: Date;
+    };
+    const mergedUsers: UserStatus[] = (cognitoUsers as CognitoUser[]).map((user) => {
       const isApproved = approvedEmails.includes(user.email?.toLowerCase());
       return {
         id: user.username,
         email: user.email,
         cognitoUsername: user.username,
-        status: isApproved ? 'approved' as 'approved' : 'pending' as 'pending',
+        status: isApproved ? 'approved' as const : 'pending' as const,
         givenName: user.givenName,
         familyName: user.familyName,
         phoneNumber: user.phoneNumber,
