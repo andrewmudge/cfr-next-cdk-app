@@ -212,7 +212,9 @@ const ScheduleSection = () => {
                   >
                     {scheduleData[day.id as keyof typeof scheduleData].map((event, index) => {
                       const IconComponent = event.icon;
-                      
+                      const isHtmlDescription = typeof event.description === 'string' && (
+                        event.description.includes('<a')
+                      );
                       return (
                         <div
                           key={index}
@@ -244,16 +246,18 @@ const ScheduleSection = () => {
                                       </span>
                                     )}
                                   </div>
-                                  
                                   {event.subtitle && (
                                     <p className="text-sm font-medium text-slate-700">
                                       {event.subtitle}
                                     </p>
                                   )}
-                                  
-                                  <p className="text-slate-600 leading-relaxed">
-                                    {event.description}
-                                  </p>
+                                  {isHtmlDescription ? (
+                                    <p className="text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: event.description }} />
+                                  ) : (
+                                    <p className="text-slate-600 leading-relaxed">
+                                      {event.description}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </div>
