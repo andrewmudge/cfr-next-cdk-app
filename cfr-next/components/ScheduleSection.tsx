@@ -12,7 +12,7 @@ const ScheduleSection = () => {
     friday: [
       {
         time: '09:30 AM',
-        title: 'Welcoming Committee',
+        title: 'Wizarding Welcoming Committee',
         description: 'Laura Leedy & Jarret King',
         icon: Users,
         color: 'from-blue-500 to-blue-700',
@@ -22,7 +22,7 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Cornhole Tournament',
+        title: 'Accio Bags!! - Cornhole Tournament',
         description: 'Angela Jachetti and Mykel Vallar',
         price: '$10',
         icon: Trophy,
@@ -31,8 +31,8 @@ const ScheduleSection = () => {
       },
       {
         time: '4:00 PM',
-        title: 'Food Challenge',
-        description: 'Street Taco Throwdown',
+        title: 'A Siriusly Good Street Taco Showdown',
+        description: 'Reigning Champs: Team Bennett. Bring your best',
         price: 'TBD',
         icon: Utensils,
         color: 'from-orange-500 to-orange-700',
@@ -40,15 +40,15 @@ const ScheduleSection = () => {
       },
       {
         time: '7:00 PM',
-        title: 'Friday Night Meeting',
+        title: 'Expecto Agenda - Friday Night Meeting',
         description: 'Grab your chairs and tune in for the weekends festivities',
         icon: Users,
         color: 'from-purple-500 to-purple-700',
         bgColor: 'bg-purple-50',
       },
-      /*
+      
       {
-        time: '10:00 PM',
+        time: '9:00 PM',
         title: 'Danger Zone Dogs',
         description: 'DZD Chefs are back. Quality products only.',
         subtitle: 'Cleared hot for another year',
@@ -56,12 +56,12 @@ const ScheduleSection = () => {
         color: 'from-red-500 to-red-700',
         bgColor: 'bg-red-50',
       },
-      */
+      
     ],
     saturday: [
       {
         time: '11:00 AM',
-        title: 'Horseshoe Tournament',
+        title: 'Ringardium Leviosa! - Horseshoe Tournament',
         description: 'Nancy Reineking and Brycen Swanson',
         price: '$10',
         icon: Trophy,
@@ -70,7 +70,7 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Darts Tournament',
+        title: 'Defense against the DART Arts',
         description: 'Paul Riker',
         price: '$10',
         icon: Trophy,
@@ -79,31 +79,31 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Kids Games',
-        description: 'Lisa, Allie, Kearstyn',
+        title: 'Lil\' Wizzard Games',
+        description: 'Lisa Enns, Allie Shaw, Kearstyn Shaw',
         icon: Users,
         color: 'from-pink-500 to-pink-700',
         bgColor: 'bg-pink-50',
       },
       {
         time: '07:00 PM',
-        title: 'Dinner',
-        description: 'Dinner Theme TBD',
+        title: 'Muggle Meal',
+        description: 'Pasta, salad, bread + games!',
         icon: Utensils,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
       },
       {
         time: 'After Dinner',
-        title: 'After Dinner Game',
-        description: 'After Dinner Game Details TBD',
+        title: 'Games',
+        description: 'Stay put for some after-dinner fun',
         icon: Trophy,
         color: 'from-blue-500 to-blue-700',
         bgColor: 'bg-blue-50',
       },
       {
-        time: '10:00 PM',
-        title: 'Charades',
+        time: '9:30 PM',
+        title: 'Charades (Gianna and Angela)',
         description: '2024 Winners: Jackie Riker, Morgan Trivitt, Tony Burton, Matt Greenberg, and Christina Enns.',
         icon: Users,
         color: 'from-purple-500 to-purple-700',
@@ -114,14 +114,14 @@ const ScheduleSection = () => {
       {
         time: '10:30 AM',
         title: 'Brunch',
-        description: 'Mimosas and Deliciousness',
+        description: '<a href="https://docs.google.com/spreadsheets/d/1XzpNoSARClVuua5iLq5_4X91Ok6k2jwvlaE5P0OmNjc/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Brunch Sign-Up</a>',
         icon: Utensils,
         color: 'from-orange-500 to-orange-700',
         bgColor: 'bg-orange-50',
       },
       {
         time: '12:00 PM',
-        title: 'Poker Tournament',
+        title: 'Wands Down, Cards Up - Poker Tournament',
         description: 'Clint Blackburn',
         price: '$20',
         icon: Trophy,
@@ -130,7 +130,7 @@ const ScheduleSection = () => {
       },
       {
         time: '1:00 PM',
-        title: 'Kids Checkers Tournament',
+        title: 'Kings Cross Checkers Tournament',
         description: 'Dylan Enns',
         icon: Trophy,
         color: 'from-blue-500 to-blue-700',
@@ -138,7 +138,7 @@ const ScheduleSection = () => {
       },
       {
         time: '04:00 PM',
-        title: 'Egg Toss',
+        title: 'EGGspelliarmus! - Egg Toss',
         description: 'Devin Riker and Gino Burton',
         icon: Trophy,
         color: 'from-yellow-500 to-yellow-700',
@@ -146,16 +146,16 @@ const ScheduleSection = () => {
       },
       {
         time: '07:00 PM',
-        title: 'Dinner',
-        description: 'Delicious dinner including a Potato Bar',
+        title: 'Dumbledore\'s Tater Bar',
+        description: 'Potato bar toppings provided. Please <a href="https://docs.google.com/spreadsheets/d/1e7eIDzU9kEBOJQBc6C0-NgKnH_LqEcmJafYTNojupFI/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Sign-Up</a> for meat',
         icon: Utensils,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
       },
       {
         time: '08:30 PM',
-        title: 'Raffle',
-        description: 'Raffle Volunteers',
+        title: 'House Cup Raffle',
+        description: 'Adam, Gino, Jake, Kate, Tony',
         icon: Trophy,
         color: 'from-purple-500 to-purple-700',
         bgColor: 'bg-purple-50',
