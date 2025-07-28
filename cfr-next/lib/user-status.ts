@@ -66,7 +66,7 @@ export const getAllUsers = async (): Promise<UserStatus[]> => {
     const approvedUsers = await response.json();
     const approvedEmails = approvedUsers.map((u: { email: string }) => u.email?.toLowerCase());
 
-    // 3. Merge: For each Cognito user, set status based on DynamoDB
+    // 3. Merge: For each Cognito user, set status based on DynamoDB table
     type CognitoUser = {
       username: string;
       email: string;
