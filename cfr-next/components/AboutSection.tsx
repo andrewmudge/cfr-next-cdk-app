@@ -32,30 +32,28 @@ const AboutSection = () => {
                 </p>
               </div>
 
-              {/* Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-50 p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200">
-                  <MapPin className="w-8 h-8 text-red-600 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-bold text-slate-800 mb-2">Location</h3>
-                  <p className="text-sm text-slate-600">
+              {/* Info Cards - always 3 columns, smaller on mobile */}
+              <div className="grid grid-cols-3 gap-3 sm:gap-6 w-full max-w-md sm:max-w-none mx-auto">
+                <div className="bg-slate-50 p-3 sm:p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200 text-xs sm:text-base">
+                  <MapPin className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-bold text-slate-800 mb-1 sm:mb-2">Location</h3>
+                  <p className="text-xs sm:text-sm text-slate-600">
                     Casa de Fruta<br />
                     Gilroy, California
                   </p>
                 </div>
-                
-                <div className="bg-slate-50 p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200">
-                  <Calendar className="w-8 h-8 text-red-600 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-bold text-slate-800 mb-2">Dates</h3>
-                  <p className="text-sm text-slate-600">
+                <div className="bg-slate-50 p-3 sm:p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200 text-xs sm:text-base">
+                  <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-bold text-slate-800 mb-1 sm:mb-2">Dates</h3>
+                  <p className="text-xs sm:text-sm text-slate-600">
                     August 28th - September 1st<br />
                     2025
                   </p>
                 </div>
-                
-                <div className="bg-slate-50 p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200">
-                  <Users className="w-8 h-8 text-red-600 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-bold text-slate-800 mb-2">Tradition</h3>
-                  <p className="text-sm text-slate-600">
+                <div className="bg-slate-50 p-3 sm:p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200 text-xs sm:text-base">
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-bold text-slate-800 mb-1 sm:mb-2">Tradition</h3>
+                  <p className="text-xs sm:text-sm text-slate-600">
                     58th Annual<br />
                     Family Gathering
                   </p>
