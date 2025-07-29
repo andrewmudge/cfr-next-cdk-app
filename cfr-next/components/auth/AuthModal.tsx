@@ -63,10 +63,11 @@ const AuthModal = () => {
       // Show backend error message if present
       let backendMsg = '';
       if (error && typeof error === 'object') {
-        if ('error' in error && typeof (error as any).error === 'string') {
-          backendMsg = (error as any).error;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          backendMsg = (error as any).message;
+        const errObj = error as Record<string, unknown>;
+        if ('error' in errObj && typeof errObj.error === 'string') {
+          backendMsg = errObj.error;
+        } else if ('message' in errObj && typeof errObj.message === 'string') {
+          backendMsg = errObj.message;
         }
       }
       if (backendMsg === 'ACCOUNT_PENDING_APPROVAL') {

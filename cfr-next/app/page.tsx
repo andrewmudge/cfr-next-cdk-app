@@ -9,6 +9,7 @@ import AboutSection from '@/components/AboutSection';
 import CabinetSection from '@/components/CabinetSection';
 import ThemeSection from '@/components/ThemeSection';
 import ScheduleSection from '@/components/ScheduleSection';
+import NewsletterSection from '@/components/NewsletterSection';
 // ...existing code...
 import FamilyOnlySection from '@/components/FamilyOnlySection';
 import PaymentsSection from '@/components/PaymentsSection';
@@ -65,6 +66,7 @@ function HomeContent() {
           <CabinetSection />
           <ThemeSection />
           <ScheduleSection />
+          <NewsletterSection />
           {/* ...removed unused GamesSection... */}
           <FamilyOnlySection />
           <PaymentsSection />
