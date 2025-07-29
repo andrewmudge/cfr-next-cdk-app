@@ -14,6 +14,7 @@ import NewsletterSection from '@/components/NewsletterSection';
 import FamilyOnlySection from '@/components/FamilyOnlySection';
 import PaymentsSection from '@/components/PaymentsSection';
 import ContactSection from '@/components/ContactSection';
+import PastFlyers from '@/components/PastFlyers';
 import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
 import { AuthProvider, useAuth } from '@/lib/auth/AuthContext';
@@ -73,6 +74,7 @@ function HomeContent() {
           <ContactSection />
         </motion.div>
       </main>
+      <PastFlyers />
       <Footer />
       <AuthModal />
       <Toaster />
