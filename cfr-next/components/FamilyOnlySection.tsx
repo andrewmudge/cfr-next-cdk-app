@@ -139,7 +139,7 @@ const FamilyOnlySection = () => {
             </div>
 
             {/* Preview of what's inside */}
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="mt-12 grid grid-cols-3 gap-6">
               <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
                 <Camera className="w-8 h-8 text-red-500 mx-auto mb-3" />
                 <h4 className="text-slate-800 font-semibold mb-2">Photo Gallery</h4>

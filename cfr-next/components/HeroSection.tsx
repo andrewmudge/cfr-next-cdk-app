@@ -35,13 +35,13 @@ const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="mb-8"
           >
-            <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center border-4 border-red-600 shadow-2xl">
+            <div className="w-40 h-40 mx-auto bg-white rounded-full flex items-center justify-center border-4 border-red-600 shadow-2xl">
               <Image
                 src="/favicon.png"
                 alt="Churchwell Family Logo"
-                width={112}
-                height={112}
-                className="w-28 h-28 object-contain"
+                width={140}
+                height={140}
+                className="w-36 h-36 object-contain"
                 priority
               />
             </div>
