@@ -135,12 +135,13 @@ const AuthModal = () => {
   const handleGoogleSignIn = () => {
     const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN;
     const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
-    const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI;
-    const responseType = "code";
+    // Use the callback page as the redirect URI
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    const responseType = "token"; // Use implicit flow to get tokens in fragment
     const provider = "Google";
 
     window.location.href =
-      `https://${domain}/oauth2/authorize?identity_provider=${provider}&redirect_uri=${encodeURIComponent(redirectUri ?? '')}&response_type=${responseType}&client_id=${clientId}&scope=openid+profile+email`;
+      `https://${domain}/oauth2/authorize?identity_provider=${provider}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&client_id=${clientId}&scope=openid+profile+email`;
   };
 
   if (!isAuthModalOpen) return null;
