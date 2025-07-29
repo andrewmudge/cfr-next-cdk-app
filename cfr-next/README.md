@@ -147,5 +147,5 @@ IAM policies follow least-privilege principle
 Cognito uses email verification, password policies
 
 📄 License
-MIT License © 2025 Andrew Mudge
+MIT License © 2025 Andrew Mudge.
 
