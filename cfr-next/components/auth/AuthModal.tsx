@@ -46,7 +46,7 @@ const AuthModal = () => {
           toast.error('Password does not meet requirements');
           return;
         }
-        const result = await signUp(
+        await signUp(
           formData.email,
           formData.password,
           formData.firstName,
@@ -59,12 +59,15 @@ const AuthModal = () => {
         await signIn(formData.email, formData.password);
         toast.success('Welcome back to the family!');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Show backend error message if present
       let backendMsg = '';
       if (error && typeof error === 'object') {
-        if (error.error) backendMsg = error.error;
-        else if (error.message) backendMsg = error.message;
+        if ('error' in error && typeof (error as any).error === 'string') {
+          backendMsg = (error as any).error;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          backendMsg = (error as any).message;
+        }
       }
       if (backendMsg === 'ACCOUNT_PENDING_APPROVAL') {
         toast.error('Your account is pending approval. Please contact Andrew Mudge.');

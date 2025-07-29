@@ -10,13 +10,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { idToken, accessToken } = req.body;
   if (!idToken || !accessToken) return res.status(400).json({ error: 'Missing tokens' });
   // Decode idToken to get email
-  let decoded: any = {};
+  let decoded: unknown = {};
   try {
     decoded = jwt.decode(idToken);
   } catch {
     return res.status(400).json({ error: 'Invalid token' });
   }
-  const email = decoded?.email;
+  // Type guard for decoded token
+  const email = typeof decoded === 'object' && decoded && 'email' in decoded ? (decoded as { email?: string }).email : undefined;
   if (!email) return res.status(400).json({ error: 'No email in token' });
   // Check for existing native user with this email
   try {
@@ -31,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (nativeUser) {
       return res.status(400).json({ error: 'This email is already registered with email/password. Please use email/password to sign in.' });
     }
-  } catch (e) {
+  } catch {
     // If error, allow sign-in (fail open)
   }
   setAuthCookies(res, idToken, accessToken);

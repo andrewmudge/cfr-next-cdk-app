@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Calendar, MapPin } from 'lucide-react';
+import Image from 'next/image';
 
 const HeroSection = () => {
   return (
@@ -35,10 +36,13 @@ const HeroSection = () => {
             className="mb-8"
           >
             <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center border-4 border-red-600 shadow-2xl">
-              <img 
-                src="/favicon.png" 
-                alt="Churchwell Family Logo" 
+              <Image
+                src="/favicon.png"
+                alt="Churchwell Family Logo"
+                width={112}
+                height={112}
                 className="w-28 h-28 object-contain"
+                priority
               />
             </div>
           </motion.div>
@@ -70,9 +74,9 @@ const HeroSection = () => {
             transition={{ delay: 0.8 }}
             className="space-y-4"
           >
-            <p className="text-xl md:text-2xl text-slate-300 font-medium">
+{/*             <p className="text-xl md:text-2xl text-slate-300 font-medium">
               Celebrating 58 Years of Family Tradition
-            </p>
+            </p> */}
             <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-700 mx-auto rounded-full"></div>
           </motion.div>
 
