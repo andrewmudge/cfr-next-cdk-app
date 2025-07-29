@@ -38,17 +38,14 @@ const AuthModal = () => {
           toast.error('Passwords do not match');
           return;
         }
-        
         if (!isValidUSPhone(formData.phone)) {
           toast.error('Please enter a valid 10-digit US phone number');
           return;
         }
-        
         if (!isPasswordValid(formData.password)) {
           toast.error('Password does not meet requirements');
           return;
         }
-        
         const result = await signUp(
           formData.email,
           formData.password,
@@ -62,9 +59,19 @@ const AuthModal = () => {
         await signIn(formData.email, formData.password);
         toast.success('Welcome back to the family!');
       }
-    } catch (error: unknown) {
-      if (error instanceof Error && error.message === 'ACCOUNT_PENDING_APPROVAL') {
+    } catch (error: any) {
+      // Show backend error message if present
+      let backendMsg = '';
+      if (error && typeof error === 'object') {
+        if (error.error) backendMsg = error.error;
+        else if (error.message) backendMsg = error.message;
+      }
+      if (backendMsg === 'ACCOUNT_PENDING_APPROVAL') {
         toast.error('Your account is pending approval. Please contact Andrew Mudge.');
+      } else if (backendMsg === 'This email is registered with Google. Please sign in with Google.') {
+        toast.error('This email is registered with Google. Please sign in with Google.');
+      } else if (backendMsg) {
+        toast.error(backendMsg);
       } else {
         toast.error(authStep === 'signup' ? 'Failed to create account' : 'Failed to sign in');
       }

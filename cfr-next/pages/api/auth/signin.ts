@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { cognitoClient } from './utils';
-import { AdminInitiateAuthCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { AdminInitiateAuthCommand, ListUsersCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID } from './config';
 import { setAuthCookies } from './setAuthCookies';
 import { checkUserApprovalServer } from '@/lib/dynamodb-server';
@@ -10,6 +10,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end();
   const { email, password } = req.body;
   try {
+    // Check if a federated user exists for this email
+    const listUsersCommand = new ListUsersCommand({
+      UserPoolId: COGNITO_USER_POOL_ID,
+      Filter: `email = \"${email}\"`,
+      Limit: 1,
+    });
+    const usersResult = await cognitoClient.send(listUsersCommand);
+    const user = usersResult.Users && usersResult.Users[0];
+    if (user) {
+      // If the user has a federated identity provider, block native sign-in
+      const hasFederated = user.Attributes?.some(
+        (attr) => attr.Name === 'identities' && attr.Value && attr.Value !== ''
+      );
+      if (hasFederated) {
+        return res.status(403).json({ error: 'This email is registered with Google. Please sign in with Google.' });
+      }
+    }
+
     const command = new AdminInitiateAuthCommand({
       UserPoolId: COGNITO_USER_POOL_ID,
       ClientId: COGNITO_CLIENT_ID,
