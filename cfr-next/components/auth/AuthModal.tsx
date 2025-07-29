@@ -132,6 +132,17 @@ const AuthModal = () => {
     }
   };
 
+  const handleGoogleSignIn = () => {
+    const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN;
+    const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
+    const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI;
+    const responseType = "code";
+    const provider = "Google";
+
+    window.location.href =
+      `https://${domain}/oauth2/authorize?identity_provider=${provider}&redirect_uri=${encodeURIComponent(redirectUri ?? '')}&response_type=${responseType}&client_id=${clientId}&scope=openid+profile+email`;
+  };
+
   if (!isAuthModalOpen) return null;
 
   return (
@@ -487,9 +498,9 @@ const AuthModal = () => {
                 type="button"
                 variant="outline"
                 className="w-full"
-                disabled
+                onClick={handleGoogleSignIn}
               >
-                Google (Coming Soon)
+                Sign in with Google
               </Button>
               <Button
                 type="button"
