@@ -59,7 +59,7 @@ const HeroSection = () => {
               animate={{ scale: 1 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              Churchwell Family Reunion
+              Churchwell Family Reunion!
             </motion.h2>
           </div>
 
