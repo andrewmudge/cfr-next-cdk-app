@@ -34,7 +34,7 @@ exports.handler = async (event) => {
 
         return {
           id: photoId,
-          url: `https://${BUCKET_NAME}.s3.amazonaws.com/${object.Key}`,
+          url: `https://d3h0xsdn3j96uc.cloudfront.net/${object.Key}`,
           caption: metadata.Metadata.caption || '',
           uploader: metadata.Metadata.uploader || '',
           date: metadata.Metadata.date || '',

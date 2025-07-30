@@ -36,7 +36,7 @@ export async function listPhotos(year: number): Promise<PhotoMetadata[]> {
       const photoId = object.Key!.split('/').pop()!.split('.')[0];
       return {
         id: photoId,
-        url: `https://${BUCKET_NAME}.s3.amazonaws.com/${object.Key}`,
+        url: `https://d3h0xsdn3j96uc.cloudfront.net/${object.Key}`,
         caption: metadata.Metadata?.caption || '',
         uploader: metadata.Metadata?.uploader || '',
         date: metadata.Metadata?.date || '',
@@ -73,7 +73,7 @@ export async function uploadPhoto(file: File, year: number, metadata: { caption:
   await s3.send(new PutObjectCommand(uploadParams));
   return {
     id: photoId,
-    url: `https://${BUCKET_NAME}.s3.amazonaws.com/${s3Key}`,
+    url: `https://d3h0xsdn3j96uc.cloudfront.net/${s3Key}`,
     caption: metadata.caption,
     uploader: metadata.uploader,
     date: metadata.date,
