@@ -1,5 +1,8 @@
 
-// Carousel component for flyer images
+
+import React, { useState } from 'react';
+import Image from 'next/image';
+
 const flyerImages = [
   '/cfr-flyer-1.png',
   '/cfr-flyer-2.png',
@@ -32,11 +35,14 @@ const Carousel: React.FC = () => {
       >
         <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
       </button>
-      <img
+      <Image
         src={flyerImages[current]}
         alt={`CFR Newsletter page ${current + 1}`}
+        width={1200}
+        height={1600}
         className="w-full max-h-[70vh] object-contain bg-white select-none"
         draggable={false}
+        priority
       />
       <button
         aria-label="Next page"
@@ -56,11 +62,6 @@ const Carousel: React.FC = () => {
     </div>
   );
 };
-
-
-import React, { useState } from 'react';
-
-
 
 const NewsletterSection = () => {
   return (
