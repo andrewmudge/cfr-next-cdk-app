@@ -12,6 +12,14 @@ const Carousel: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const total = flyerImages.length;
 
+  // Preload all images on mount
+  React.useEffect(() => {
+    flyerImages.forEach((src) => {
+      const img = new window.Image();
+      img.src = src;
+    });
+  }, []);
+
   const prev = () => setCurrent((prev) => (prev === 0 ? total - 1 : prev - 1));
   const next = () => setCurrent((prev) => (prev === total - 1 ? 0 : prev + 1));
 
