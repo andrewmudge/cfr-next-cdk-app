@@ -9,17 +9,6 @@ export interface ApprovedUserData {
 }
 
 
-// TODO: Implement addApprovedUser using DynamoDB if needed
-
-
-// TODO: Implement bulkImportApprovedUsers using DynamoDB if needed
-
-
-// TODO: Implement getApprovedUsers using DynamoDB if needed
-
-
-// TODO: Implement removeApprovedUser using DynamoDB if needed
-
 /**
  * Checks if the given email is in the ApprovedUsers DynamoDB table.
  * @param email The user's email address

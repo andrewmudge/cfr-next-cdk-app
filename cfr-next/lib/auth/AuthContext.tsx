@@ -50,8 +50,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
 
-  // Configure Amplify on client side
-  // No Amplify config needed
 
   useEffect(() => {
     // On mount, check if user is authenticated via API route
