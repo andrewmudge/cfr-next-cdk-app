@@ -12,8 +12,8 @@ const ScheduleSection = () => {
     friday: [
       {
         time: '09:30 AM',
-        title: 'Wizarding Welcoming Committee',
-        description: 'Laura Leedy & Jarret King',
+        title: 'Welcoming Committee',
+        description: 'TBD',
         icon: Users,
         color: 'from-blue-500 to-blue-700',
         bgColor: 'bg-blue-50',
@@ -22,25 +22,25 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Accio Bags!! - Cornhole Tournament',
-        description: 'Angela Jachetti and Mykel Vallar',
+        title: 'Cornhole Tournament',
+        description: 'Matt Ferguson and Danette Schutte',
         price: '$10',
         icon: Trophy,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
       },
-      {
-        time: '4:00 PM',
-        title: 'A Siriusly Good Street Taco Showdown',
-        description: 'Reigning Champs: Team Bennett. Bring your best',
-        price: 'TBD',
-        icon: Utensils,
-        color: 'from-orange-500 to-orange-700',
-        bgColor: 'bg-orange-50',
-      },
+      // {
+      //   time: '4:00 PM',
+      //   title: 'Food Challenge',
+      //   description: 'Reigning Champs: Team Bennett. Bring your best',
+      //   price: 'TBD',
+      //   icon: Utensils,
+      //   color: 'from-orange-500 to-orange-700',
+      //   bgColor: 'bg-orange-50',
+      // },
       {
         time: '7:00 PM',
-        title: 'Expecto Agenda - Friday Night Meeting',
+        title: 'Friday Night Meeting',
         description: 'Grab your chairs and tune in for the weekends festivities',
         icon: Users,
         color: 'from-purple-500 to-purple-700',
@@ -49,7 +49,7 @@ const ScheduleSection = () => {
       
       {
         time: '9:00 PM',
-        title: 'Danger Zone Dogs',
+        title: 'Danger Zone Dogs - TBD',
         description: 'DZD Chefs are back. Quality products only.',
         subtitle: 'Cleared hot for another year',
         icon: Utensils,
@@ -61,8 +61,8 @@ const ScheduleSection = () => {
     saturday: [
       {
         time: '11:00 AM',
-        title: 'Ringardium Leviosa! - Horseshoe Tournament',
-        description: 'Nancy Reineking and Brycen Swanson',
+        title: 'Horseshoe Tournament',
+        description: 'Nancy Reineking and Nicholas Ferry',
         price: '$10',
         icon: Trophy,
         color: 'from-yellow-500 to-yellow-700',
@@ -70,8 +70,8 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Defense against the DART Arts',
-        description: 'Paul Riker',
+        title: 'Dart Tournament',
+        description: 'Matt Greenberg',
         price: '$10',
         icon: Trophy,
         color: 'from-indigo-500 to-indigo-700',
@@ -79,16 +79,16 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Lil\' Wizzard Games',
-        description: 'Lisa Enns, Allie Shaw, Kearstyn Shaw',
+        title: 'Kids Games',
+        description: 'Helpers - TBD',
         icon: Users,
         color: 'from-pink-500 to-pink-700',
         bgColor: 'bg-pink-50',
       },
       {
         time: '07:00 PM',
-        title: 'Muggle Meal',
-        description: 'Pasta, salad, bread + games!',
+        title: 'Dinner',
+        description: 'TBD',
         icon: Utensils,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
@@ -103,8 +103,8 @@ const ScheduleSection = () => {
       },
       {
         time: '9:30 PM',
-        title: 'Charades (Gianna and Angela)',
-        description: '2024 Winners: Jackie Riker, Morgan Trivitt, Tony Burton, Matt Greenberg, and Christina Enns.',
+        title: 'Charades - TBD',
+        description: 'TBD',
         icon: Users,
         color: 'from-purple-500 to-purple-700',
         bgColor: 'bg-purple-50',
@@ -121,8 +121,8 @@ const ScheduleSection = () => {
       },
       {
         time: '12:00 PM',
-        title: 'Wands Down, Cards Up - Poker Tournament',
-        description: 'Clint Blackburn',
+        title: 'Poker Tournament',
+        description: 'Jackie Riker',
         price: '$20',
         icon: Trophy,
         color: 'from-red-500 to-red-700',
@@ -130,32 +130,32 @@ const ScheduleSection = () => {
       },
       {
         time: '1:00 PM',
-        title: 'Kings Cross Checkers Tournament',
-        description: 'Dylan Enns',
+        title: 'Checkers Tournament',
+        description: 'TBD',
         icon: Trophy,
         color: 'from-blue-500 to-blue-700',
         bgColor: 'bg-blue-50',
       },
       {
         time: '04:00 PM',
-        title: 'EGGspelliarmus! - Egg Toss',
-        description: 'Devin Riker and Gino Burton',
+        title: 'Egg Toss',
+        description: 'Gino Burton & Alexa Vasquez',
         icon: Trophy,
         color: 'from-yellow-500 to-yellow-700',
         bgColor: 'bg-yellow-50',
       },
       {
         time: '07:00 PM',
-        title: 'Dumbledore\'s Tater Bar',
-        description: 'Potato bar toppings provided. Please <a href="https://docs.google.com/spreadsheets/d/1e7eIDzU9kEBOJQBc6C0-NgKnH_LqEcmJafYTNojupFI/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Sign-Up</a> for meat',
+        title: 'Dinner',
+        description: 'TBD',
         icon: Utensils,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
       },
       {
         time: '08:30 PM',
-        title: 'House Cup Raffle',
-        description: 'Adam, Gino, Jake, Kate, Tony',
+        title: 'Raffle',
+        description: 'TBD',
         icon: Trophy,
         color: 'from-purple-500 to-purple-700',
         bgColor: 'bg-purple-50',
@@ -177,7 +177,7 @@ const ScheduleSection = () => {
             Weekend Schedule
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            2025 Churchwell Family Reunion Activities - A wonderful weekend full of family fun and memorable events
+            2026 Churchwell Family Reunion Activities - A wonderful weekend full of family fun and memorable events
           </p>
         </div>
 

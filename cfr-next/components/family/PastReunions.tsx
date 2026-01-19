@@ -24,6 +24,18 @@ interface Reunion {
 
 const reunions: Reunion[] = [
   {
+    year: 2025,
+    location: "Casa De Fruta, Hollister",
+    attendance: 111,
+    adults: 95,
+    kids: 16,
+    president: "Rachelle Bennett",
+    vicePresident: "Mackenzie Boone",
+    secretary: "Janet Mudge",
+    treasurer: "Toni Vasquez",
+    historian: "Sarah Churchwell",
+  },
+  {
     year: 2024,
     location: "Casa De Fruta, Hollister",
     president: "Andrew Mudge",

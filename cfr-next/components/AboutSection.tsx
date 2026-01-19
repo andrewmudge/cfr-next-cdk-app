@@ -21,7 +21,7 @@ const AboutSection = () => {
                 </h2>
                 <div className="w-16 h-1 bg-gradient-to-r from-red-600 to-red-700 rounded-full"></div>
                 <p className="text-lg text-slate-600 leading-relaxed">
-                  For 58 years, the Churchwell family has gathered to reconnect, share stories, 
+                  For 59 years, the Churchwell family has gathered to reconnect, share stories, 
                   and strengthen the bonds that unite us across generations. Our annual reunion 
                   is a cherished tradition that celebrates our heritage and creates lasting 
                   memories with loved ones.
@@ -46,15 +46,15 @@ const AboutSection = () => {
                   <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
                   <h3 className="font-bold text-slate-800 mb-1 sm:mb-2">Dates</h3>
                   <p className="text-xs sm:text-sm text-slate-600">
-                    August 28th - September 1st<br />
-                    2025
+                    September 3rd - September 7th<br />
+                    2026
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 sm:p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200 text-xs sm:text-base">
                   <Users className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
                   <h3 className="font-bold text-slate-800 mb-1 sm:mb-2">Tradition</h3>
                   <p className="text-xs sm:text-sm text-slate-600">
-                    58th Annual<br />
+                    59th Annual<br />
                     Family Gathering
                   </p>
                 </div>
@@ -90,7 +90,7 @@ const AboutSection = () => {
                 
                 {/* Floating badge */}
                 <div className="absolute top-6 right-6 bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-full font-bold text-sm shadow-lg">
-                  58 Years of Tradition
+                  59 Years of Tradition
                 </div>
               </div>
             </div>

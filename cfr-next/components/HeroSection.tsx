@@ -90,7 +90,7 @@ const HeroSection = () => {
             <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-12">
               <div className="flex items-center space-x-3 text-white bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20">
                 <Calendar className="w-5 h-5 text-red-400" />
-                <span className="text-lg font-medium">Aug 28th - Sep 1st 2025</span>
+                <span className="text-lg font-medium">Sep 3rd - Sep 7th 2026</span>
               </div>
               <div className="flex items-center space-x-3 text-white bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20">
                 <MapPin className="w-5 h-5 text-red-400" />
