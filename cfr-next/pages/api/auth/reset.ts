@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { cognitoClient } from './utils';
+import { cognitoClient } from '@/lib/cognito-client';
 import { ForgotPasswordCommand } from '@aws-sdk/client-cognito-identity-provider';
-import { COGNITO_CLIENT_ID } from './config';
+import { COGNITO_CLIENT_ID } from '@/lib/cognito-config';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end();

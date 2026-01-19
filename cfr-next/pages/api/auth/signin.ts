@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { cognitoClient } from './utils';
+import { cognitoClient } from '@/lib/cognito-client';
 import { AdminInitiateAuthCommand, ListUsersCommand } from '@aws-sdk/client-cognito-identity-provider';
-import { COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID } from './config';
-import { setAuthCookies } from './setAuthCookies';
+import { COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID } from '@/lib/cognito-config';
+import { setAuthCookies } from '@/lib/setAuthCookies';
 import { checkUserApprovalServer } from '@/lib/dynamodb-server';
 import { jwtDecode } from 'jwt-decode';
 

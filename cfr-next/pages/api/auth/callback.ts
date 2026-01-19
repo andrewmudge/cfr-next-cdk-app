@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { setAuthCookies } from './setAuthCookies';
-import { cognitoClient } from './utils';
+import { setAuthCookies } from '@/lib/setAuthCookies';
+import { cognitoClient } from '@/lib/cognito-client';
 import { ListUsersCommand, ListUsersCommandOutput, UserType } from '@aws-sdk/client-cognito-identity-provider';
-import { COGNITO_USER_POOL_ID } from './config';
+import { COGNITO_USER_POOL_ID } from '@/lib/cognito-config';
 import jwt from 'jsonwebtoken';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
