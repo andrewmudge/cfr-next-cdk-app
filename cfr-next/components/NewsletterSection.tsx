@@ -69,7 +69,7 @@ const NewsletterSection = () => {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-10">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-2">CFR Newsletter</h2>
-          <p className="text-lg text-slate-600">2025 Newsletter</p>
+          <p className="text-lg text-slate-600">2026 Newsletter Coming Soon</p>
         </div>
         {/* Photo Carousel */}
         <Carousel />

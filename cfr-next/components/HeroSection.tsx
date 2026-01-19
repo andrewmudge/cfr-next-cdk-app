@@ -55,7 +55,7 @@ const HeroSection = () => {
               animate={{ scale: 1 }}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              The 58th Annual
+              The 59th Annual
             </motion.h1>
             <motion.h2
               className="text-3xl md:text-5xl lg:text-6xl font-bold text-transparent bg-gradient-to-r from-red-400 via-red-500 to-red-600 bg-clip-text leading-tight"
@@ -75,7 +75,7 @@ const HeroSection = () => {
             className="space-y-4"
           >
 {/*             <p className="text-xl md:text-2xl text-slate-300 font-medium">
-              Celebrating 58 Years of Family Tradition
+              Celebrating 59 Years of Family Tradition
             </p> */}
             <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-700 mx-auto rounded-full"></div>
           </motion.div>

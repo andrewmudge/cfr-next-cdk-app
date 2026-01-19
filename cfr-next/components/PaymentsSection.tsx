@@ -63,7 +63,7 @@ const PaymentsSection = () => {
                 <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
                   <DollarSign className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">2025 Reunion Dues</h3>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">2026 Reunion Dues</h3>
                 <p className="text-slate-600">Pricing for our family weekend</p>
               </div>
 
@@ -131,7 +131,7 @@ const PaymentsSection = () => {
                       <div className="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-slate-700 to-blue-800 rounded-lg flex items-center justify-center shadow-lg">
                         <div className="text-center text-white">
                           <div className="text-2xl mb-1">🏡</div>
-                          <div className="text-xs font-bold">CFR 2025</div>
+                          <div className="text-xs font-bold">CFR 2026</div>
                         </div>
                       </div>
                       <h4 className="text-lg font-bold text-slate-800 mb-2">
