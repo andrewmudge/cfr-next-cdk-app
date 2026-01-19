@@ -7,7 +7,7 @@ const CabinetSection = () => {
   const cabinetMembers = [
     {
       title: 'President',
-      name: 'Rachelle Bennett',
+      name: 'Morgan Trivitt',
       icon: Crown,
       color: 'from-red-600 to-red-700',
       bgColor: 'bg-red-50',
@@ -15,7 +15,7 @@ const CabinetSection = () => {
     },
     {
       title: 'Vice President',
-      name: 'Mackenzie Boone',
+      name: 'Sarah Churchwell',
       icon: Shield,
       color: 'from-slate-600 to-slate-700',
       bgColor: 'bg-slate-50',
