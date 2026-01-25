@@ -1,23 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, X, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDropzone } from 'react-dropzone';
-import { fetchPhotos } from '@/lib/s3-utils';
+import { useInView } from 'react-intersection-observer';
+import { fetchPhotos, clearPhotoCache } from '@/lib/s3-utils';
 
 interface Photo {
   id: string;
   url: string;
+  thumbnailUrl?: string;
+  smallUrl?: string;
+  mediumUrl?: string;
   caption: string;
   uploader: string;
   date: string;
   year: number;
+  sizes?: string[];
 }
 
-const PHOTOS_PER_PAGE = 16; // Adjust as needed
+const PHOTOS_PER_PAGE = 24; // Increased for better infinite scroll experience
 
 const PhotoGallery = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -57,6 +62,19 @@ const PhotoGallery = () => {
     setVisibleCount(PHOTOS_PER_PAGE); // Reset when year changes
   }, [activeYear]);
 
+  // Infinite scroll with intersection observer
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '200px'
+  });
+
+  useEffect(() => {
+    const currentPhotos = photosByYear[activeYear] || [];
+    if (inView && visibleCount < currentPhotos.length && !loading) {
+      setVisibleCount(prev => Math.min(prev + PHOTOS_PER_PAGE, currentPhotos.length));
+    }
+  }, [inView, visibleCount, photosByYear, activeYear, loading]);
+
   const onDrop = async (acceptedFiles: File[]) => {
     for (const file of acceptedFiles) {
       try {
@@ -74,6 +92,8 @@ const PhotoGallery = () => {
           method: 'POST',
           body: formData,
         });
+        // Clear cache to ensure fresh data
+        clearPhotoCache(getS3Year(activeYear));
         await loadPhotos(activeYear);
       } catch (error) {
         console.error('Upload failed:', error);
@@ -189,27 +209,42 @@ const PhotoGallery = () => {
                           key={photo.id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: index * 0.1 }}
+                          transition={{ duration: 0.5, delay: Math.min(index * 0.05, 1) }}
                           className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
                           whileHover={{ y: -5, scale: 1.02 }}
                           onClick={() => setSelectedPhoto(photo.url)}
                         >
                           <div className="relative aspect-square">
+                            {/* Blur placeholder - thumbnail */}
+                            {photo.thumbnailUrl && (
+                              <img
+                                src={photo.thumbnailUrl}
+                                alt=""
+                                className="absolute inset-0 w-full h-full object-cover blur-sm transition-opacity duration-500"
+                                loading="eager"
+                              />
+                            )}
+                            {/* Progressive load - small size for grid, medium for modal */}
                             <img
-                              src={photo.url}
-                              alt="Family reunion memory"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              src={photo.smallUrl || photo.url}
+                              alt={photo.caption || "Family reunion memory"}
+                              className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                              onLoad={(e) => {
+                                const target = e.currentTarget;
+                                const prev = target.previousElementSibling as HTMLElement;
+                                if (prev) prev.style.opacity = '0';
+                              }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                           </div>
                         </motion.div>
                       ))}
                     </div>
+                    {/* Infinite scroll trigger */}
                     {currentPhotos.length > visibleCount && (
-                      <div className="flex justify-center mt-4">
-                        <Button onClick={() => setVisibleCount(visibleCount + PHOTOS_PER_PAGE)}>
-                          View More
-                        </Button>
+                      <div ref={loadMoreRef} className="h-20 flex items-center justify-center mt-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
                     )}
                   </>

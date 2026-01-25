@@ -30,7 +30,7 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-slate-300 text-sm leading-relaxed">
-              58 years of family tradition, memories, and togetherness. 
+              59 years of family tradition, memories, and togetherness. 
               Join us for another wonderful gathering at Casa de Fruta.
             </p>
           </motion.div>

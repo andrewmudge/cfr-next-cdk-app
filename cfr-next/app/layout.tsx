@@ -6,9 +6,9 @@ import { AuthProvider } from '@/lib/auth/AuthContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Churchwell Family Reunion 2025',
-  description: 'The 58th Annual Churchwell Family Reunion - Aug 28th - Sep 1st 2025 at Casa de Fruta',
-  keywords: 'family reunion, Churchwell, Casa de Fruta, 2025',
+  title: 'Churchwell Family Reunion 2026',
+  description: 'The 59th Annual Churchwell Family Reunion - Aug 28th - Sep 1st 2025 at Casa de Fruta',
+  keywords: 'family reunion, Churchwell, Casa de Fruta, 2026',
   icons: {
     icon: '/favicon.ico',}
 };

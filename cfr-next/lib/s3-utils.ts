@@ -81,11 +81,43 @@ export async function uploadPhoto(file: File, year: number, metadata: { caption:
   };
 }
 
-// Client-safe: fetch photos via API route
+// Client-safe: fetch photos via API route with caching
+const photoCache = new Map<string, { photos: PhotoMetadata[], timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const fetchPhotos = async (year: string): Promise<PhotoMetadata[]> => {
-  const response = await fetch(`/api/photos/list?year=${year}`);
+  const cacheKey = `photos-${year}`;
+  const cached = photoCache.get(cacheKey);
+  
+  // Return cached data if still valid
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.photos;
+  }
+
+  // Fetch fresh data
+  const response = await fetch(`/api/photos/list?year=${year}`, {
+    headers: {
+      'Cache-Control': 'public, max-age=300'
+    }
+  });
+  
   if (!response.ok) {
     throw new Error('Failed to fetch photos');
   }
-  return response.json();
+  
+  const photos = await response.json();
+  
+  // Update cache
+  photoCache.set(cacheKey, { photos, timestamp: Date.now() });
+  
+  return photos;
+};
+
+// Clear cache for a specific year (useful after upload/delete)
+export const clearPhotoCache = (year?: string) => {
+  if (year) {
+    photoCache.delete(`photos-${year}`);
+  } else {
+    photoCache.clear();
+  }
 };
