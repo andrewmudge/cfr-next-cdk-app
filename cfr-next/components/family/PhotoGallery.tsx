@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, X, Calendar } from 'lucide-react';
+import { Upload, X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDropzone } from 'react-dropzone';
 import { useInView } from 'react-intersection-observer';
 import { fetchPhotos, clearPhotoCache } from '@/lib/s3-utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Photo {
   id: string;
@@ -26,6 +27,7 @@ const PHOTOS_PER_PAGE = 24; // Increased for better infinite scroll experience
 
 const PhotoGallery = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
   const [activeYear, setActiveYear] = useState('2026');
   const [photosByYear, setPhotosByYear] = useState<Record<string, Photo[]>>({});
   const [loading, setLoading] = useState(false);
@@ -115,6 +117,28 @@ const PhotoGallery = () => {
   const currentYearData = years.find(y => y.id === activeYear);
   const currentPhotos = photosByYear[activeYear] || [];
   const visiblePhotos = currentPhotos.slice(0, visibleCount);
+// Navigation functions for photo modal
+  const handlePreviousPhoto = () => {
+    if (selectedPhotoIndex > 0) {
+      const newIndex = selectedPhotoIndex - 1;
+      setSelectedPhotoIndex(newIndex);
+      setSelectedPhoto(currentPhotos[newIndex].url);
+    }
+  };
+
+  const handleNextPhoto = () => {
+    if (selectedPhotoIndex < currentPhotos.length - 1) {
+      const newIndex = selectedPhotoIndex + 1;
+      setSelectedPhotoIndex(newIndex);
+      setSelectedPhoto(currentPhotos[newIndex].url);
+    }
+  };
+
+  // Handle photo click with index
+  const handlePhotoClick = (url: string, index: number) => {
+    setSelectedPhoto(url);
+    setSelectedPhotoIndex(index);
+  };
 
   return (
     <div className="space-y-8">
@@ -132,9 +156,10 @@ const PhotoGallery = () => {
         </p>
       </motion.div>
 
-      {/* Year Tabs */}
+      {/* Year Selection - Tabs for Desktop, Dropdown for Mobile */}
       <Tabs value={activeYear} onValueChange={setActiveYear} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-8 bg-slate-100 rounded-xl p-1">
+        {/* Desktop Tabs - Hidden on Mobile */}
+        <TabsList className="hidden md:grid w-full grid-cols-5 mb-8 bg-slate-100 rounded-xl p-1">
           {years.map((year) => (
             <TabsTrigger
               key={year.id}
@@ -148,6 +173,30 @@ const PhotoGallery = () => {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        {/* Mobile Dropdown - Hidden on Desktop */}
+        <div className="md:hidden mb-8">
+          <Select value={activeYear} onValueChange={setActiveYear}>
+            <SelectTrigger className="w-full bg-white border-2 border-slate-200 rounded-xl py-6">
+              <SelectValue>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-lg">{currentYearData?.label}</span>
+                  <span className="text-sm text-slate-600 ml-2">{currentYearData?.theme}</span>
+                </div>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year.id} value={year.id}>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-bold">{year.label}</span>
+                    <span className="text-sm text-slate-600 ml-4">{year.theme}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {years.map((year) => {
           const currentPhotos = photosByYear[year.id] || [];
@@ -213,7 +262,7 @@ const PhotoGallery = () => {
                           transition={{ duration: 0.5, delay: Math.min(index * 0.05, 1) }}
                           className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
                           whileHover={{ y: -5, scale: 1.02 }}
-                          onClick={() => setSelectedPhoto(photo.url)}
+                          onClick={() => handlePhotoClick(photo.url, index)}
                         >
                           <div className="relative aspect-square">
                             {/* Blur placeholder - thumbnail */}
@@ -269,14 +318,14 @@ const PhotoGallery = () => {
       {/* Photo Modal */}
       {selectedPhoto && (
         <motion.div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setSelectedPhoto(null)}
         >
           <motion.div
-            className="relative max-w-4xl max-h-[90vh] w-full"
+            className="relative max-w-6xl max-h-[90vh] w-full flex items-center justify-center"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
@@ -285,14 +334,41 @@ const PhotoGallery = () => {
             <img
               src={selectedPhoto}
               alt="Full size"
-              className="w-full h-full object-contain rounded-lg"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
             />
+            
+            {/* Close Button */}
             <button
               onClick={() => setSelectedPhoto(null)}
-              className="absolute top-4 right-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+              className="absolute top-4 right-4 w-12 h-12 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors z-10"
             >
               <X className="w-6 h-6" />
             </button>
+
+            {/* Previous Button */}
+            {selectedPhotoIndex > 0 && (
+              <button
+                onClick={handlePreviousPhoto}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors z-10"
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+            )}
+
+            {/* Next Button */}
+            {selectedPhotoIndex < currentPhotos.length - 1 && (
+              <button
+                onClick={handleNextPhoto}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors z-10"
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            )}
+
+            {/* Photo Counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-full text-sm">
+              {selectedPhotoIndex + 1} / {currentPhotos.length}
+            </div>
           </motion.div>
         </motion.div>
       )}

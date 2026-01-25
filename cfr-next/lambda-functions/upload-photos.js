@@ -58,6 +58,7 @@ exports.handler = async (event) => {
     for (const [sizeName, width] of Object.entries(SIZES)) {
       try {
         const resizedBuffer = await sharp(fileBuffer)
+          .rotate() // Auto-rotate based on EXIF orientation
           .resize(width, null, { 
             withoutEnlargement: true,
             fit: 'inside'
