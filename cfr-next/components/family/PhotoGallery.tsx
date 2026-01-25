@@ -179,19 +179,13 @@ const PhotoGallery = () => {
           <Select value={activeYear} onValueChange={setActiveYear}>
             <SelectTrigger className="w-full bg-white border-2 border-slate-200 rounded-xl py-6">
               <SelectValue>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-lg">{currentYearData?.label}</span>
-                  <span className="text-sm text-slate-600 ml-2">{currentYearData?.theme}</span>
-                </div>
+                <span className="font-bold text-lg">{currentYearData?.label}</span>
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {years.map((year) => (
                 <SelectItem key={year.id} value={year.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-bold">{year.label}</span>
-                    <span className="text-sm text-slate-600 ml-4">{year.theme}</span>
-                  </div>
+                  <span className="font-bold">{year.label}</span>
                 </SelectItem>
               ))}
             </SelectContent>
