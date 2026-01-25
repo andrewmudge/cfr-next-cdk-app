@@ -26,12 +26,13 @@ const PHOTOS_PER_PAGE = 24; // Increased for better infinite scroll experience
 
 const PhotoGallery = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [activeYear, setActiveYear] = useState('2025');
+  const [activeYear, setActiveYear] = useState('2026');
   const [photosByYear, setPhotosByYear] = useState<Record<string, Photo[]>>({});
   const [loading, setLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PHOTOS_PER_PAGE);
 
   const years = [
+    { id: '2026', label: '2026', theme: 'TBD', color: 'from-purple-500 to-purple-700' },
     { id: '2025', label: '2025', theme: 'Harry Potter', color: 'from-blue-500 to-blue-700' },
     { id: '2024', label: '2024', theme: 'Captain Ron', color: 'from-red-500 to-red-700' },
     { id: '2023', label: '2023', theme: 'Under the Sea', color: 'from-orange-500 to-orange-700' },
@@ -133,7 +134,7 @@ const PhotoGallery = () => {
 
       {/* Year Tabs */}
       <Tabs value={activeYear} onValueChange={setActiveYear} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8 bg-slate-100 rounded-xl p-1">
+        <TabsList className="grid w-full grid-cols-5 mb-8 bg-slate-100 rounded-xl p-1">
           {years.map((year) => (
             <TabsTrigger
               key={year.id}

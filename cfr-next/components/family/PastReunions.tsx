@@ -24,6 +24,15 @@ interface Reunion {
 
 const reunions: Reunion[] = [
   {
+    year: 2026,
+    location: "Casa De Fruta, Hollister",
+    president: "TBD",
+    vicePresident: "TBD",
+    secretary: "TBD",
+    treasurer: "TBD",
+    historian: "TBD",
+  },
+  {
     year: 2025,
     location: "Casa De Fruta, Hollister",
     attendance: 111,
