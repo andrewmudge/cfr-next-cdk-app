@@ -25,7 +25,7 @@ const ThemeSection = () => {
           </h2>
           <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-600 mx-auto rounded-full mb-8"></div>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            The theme this year is 70's. Let's get Groovy!
+            The theme this year is 70&apos;s. Let&apos;s get Groovy!
           </p>
            <div className="flex justify-center mt-6">
             <img
