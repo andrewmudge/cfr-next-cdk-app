@@ -13,6 +13,7 @@ interface Reunion {
   kids?: number | null;
   president?: string | string[];
   vicePresident?: string | string[];
+  chiefOfStaff?: string | string[];
   secretary?: string | string[];
   treasurer?: string | string[];
   pressSecretary?: string | string[];
@@ -26,11 +27,12 @@ const reunions: Reunion[] = [
   {
     year: 2026,
     location: "Casa De Fruta, Hollister",
-    president: "TBD",
-    vicePresident: "TBD",
-    secretary: "TBD",
-    treasurer: "TBD",
-    historian: "TBD",
+    president: "Morgan Trivitt",
+    vicePresident: "Sarah Churchwell",
+    chiefOfStaff: "Angela Jachetti",
+    secretary: "Janet Mudge",
+    treasurer: "Toni Vasquez",
+    historian: "Sarah Churchwell",
   },
   {
     year: 2025,

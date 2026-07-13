@@ -34,7 +34,7 @@ const PhotoGallery = () => {
   const [visibleCount, setVisibleCount] = useState(PHOTOS_PER_PAGE);
 
   const years = [
-    { id: '2026', label: '2026', theme: 'TBD', color: 'from-purple-500 to-purple-700' },
+    { id: '2026', label: '2026', theme: '70s', color: 'from-purple-500 to-purple-700' },
     { id: '2025', label: '2025', theme: 'Harry Potter', color: 'from-blue-500 to-blue-700' },
     { id: '2024', label: '2024', theme: 'Captain Ron', color: 'from-red-500 to-red-700' },
     { id: '2023', label: '2023', theme: 'Under the Sea', color: 'from-orange-500 to-orange-700' },
