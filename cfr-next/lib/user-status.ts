@@ -64,7 +64,9 @@ export const getAllUsers = async (): Promise<UserStatus[]> => {
       throw new Error('Failed to fetch approved emails');
     }
     const approvedUsers = await response.json();
-    const approvedEmails = approvedUsers.map((u: { email: string }) => u.email?.toLowerCase());
+    const approvedEmails = approvedUsers
+      .filter((u: { status?: string }) => u.status === 'approved')
+      .map((u: { email: string }) => u.email?.toLowerCase());
 
     // 3. Merge: For each Cognito user, set status based on DynamoDB table
     type CognitoUser = {
@@ -96,8 +98,8 @@ export const getAllUsers = async (): Promise<UserStatus[]> => {
 };
 
 export const updateUserStatus = async (
-  id: string, 
-  status: 'approved' | 'denied', 
+  email: string,
+  status: 'approved' | 'denied',
   denialReason?: string
 ): Promise<boolean> => {
   try {
@@ -106,7 +108,7 @@ export const updateUserStatus = async (
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ id, status, denialReason }),
+      body: JSON.stringify({ email, status, denialReason }),
       cache: 'no-cache'
     });
     

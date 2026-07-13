@@ -23,7 +23,7 @@ const CabinetSection = () => {
     },
     {
       title: 'Chief of Staff',
-      name: 'Angela Mudge',
+      name: 'Angela Jachetti',
       icon: Users,
       color: 'from-red-500 to-red-600',
       bgColor: 'bg-red-50',

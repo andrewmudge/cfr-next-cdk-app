@@ -4,11 +4,11 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 
 const flyerImages = [
-  '/flyer-1.png',
-  '/flyer-2.png',
-  '/flyer-3.png',
-  '/flyer-4.png',
-  '/flyer-5.png',
+  '/26-cfr-flyer-1.png',
+  '/26-cfr-flyer-2.png',
+  '/26-cfr-flyer-3.png',
+  '/26-cfr-flyer-4.png',
+  '/26-cfr-flyer-5.png',
 ];
 
 const Carousel: React.FC = () => {
@@ -69,13 +69,13 @@ const NewsletterSection = () => {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-10">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-2">CFR Newsletter</h2>
-          <p className="text-lg text-slate-600">2026 Newsletter Coming Soon</p>
+          <p className="text-lg text-slate-600">2026 Newsletter</p>
         </div>
         {/* Photo Carousel */}
         <Carousel />
         <div className="text-center mt-6">
           <a
-            href="/cfr-flyer-2025-v2.pdf"
+            href="/CFR_Flyer_2026.pdf"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block px-6 py-2 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition-colors"

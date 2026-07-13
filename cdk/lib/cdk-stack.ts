@@ -29,10 +29,17 @@ export class CfrNextStack extends Stack {
       ],
     }));
 
-    // DynamoDB Table
+    // DynamoDB Table for approved users
     const approvedUsersTable = new dynamodb.Table(this, 'ApprovedEmails', {
       partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
       tableName: 'ApprovedEmails'
+    });
+
+    // DynamoDB Table for photo metadata
+    const photoMetadataTable = new dynamodb.Table(this, 'PhotoMetadata', {
+      partitionKey: { name: 'year', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'photoId', type: dynamodb.AttributeType.STRING },
+      tableName: 'PhotoMetadata'
     });
 
     // Cognito User Pool
@@ -52,10 +59,12 @@ export class CfrNextStack extends Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../cfr-next/lambda-functions')),
       environment: {
         S3_BUCKET_NAME: bucket.bucketName,
+        PHOTO_METADATA_TABLE: photoMetadataTable.tableName,
       },
       timeout: Duration.seconds(30),
     });
     bucket.grantRead(listPhotosFn);
+    photoMetadataTable.grantReadData(listPhotosFn);
     // Public invoke permission for Lambda Function URL
     new lambda.CfnPermission(this, 'ListPhotosFnUrlPublicInvoke', {
       action: 'lambda:InvokeFunctionUrl',
@@ -71,10 +80,12 @@ export class CfrNextStack extends Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../cfr-next/lambda-functions')),
       environment: {
         S3_BUCKET_NAME: bucket.bucketName,
+        PHOTO_METADATA_TABLE: photoMetadataTable.tableName,
       },
       timeout: Duration.seconds(30),
     });
     bucket.grantDelete(deletePhotosFn);
+    photoMetadataTable.grantWriteData(deletePhotosFn);
     // Public invoke permission for Lambda Function URL
     new lambda.CfnPermission(this, 'DeletePhotosFnUrlPublicInvoke', {
       action: 'lambda:InvokeFunctionUrl',
@@ -115,10 +126,13 @@ export class CfrNextStack extends Stack {
     code: lambda.Code.fromAsset(path.join(__dirname, '../../cfr-next/lambda-functions')),
     environment: {
       S3_BUCKET_NAME: bucket.bucketName,
+      PHOTO_METADATA_TABLE: photoMetadataTable.tableName,
     },
-    timeout: Duration.seconds(30),
+    timeout: Duration.seconds(60),
+    memorySize: 1536, // Increased for image processing with sharp
   });
   bucket.grantReadWrite(uploadPhotosFn);
+  photoMetadataTable.grantWriteData(uploadPhotosFn);
   // Public invoke permission for Lambda Function URL
   new lambda.CfnPermission(this, 'UploadPhotosFnUrlPublicInvoke', {
     action: 'lambda:InvokeFunctionUrl',
@@ -156,7 +170,7 @@ export class CfrNextStack extends Stack {
         imageIdentifier: 'public.ecr.aws/aws-containers/hello-app-runner:latest',
       }),
       accessRole: appRunnerRole,
- 
+
     });
     // SNS Topic (reference existing)
     const signupNotificationTopic = sns.Topic.fromTopicArn(this, 'SignupNotificationTopic', 'arn:aws:sns:us-east-1:122610511543:cfr-signup-notification');

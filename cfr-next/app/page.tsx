@@ -18,7 +18,6 @@ import PastFlyers from '@/components/PastFlyers';
 import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
 import { AuthProvider, useAuth } from '@/lib/auth/AuthContext';
-import { Toaster } from '@/components/ui/sonner';
 
 function AdminRedirectHandler() {
   const { user, openAuthModal } = useAuth();
@@ -77,7 +76,6 @@ function HomeContent() {
       <PastFlyers />
       <Footer />
       <AuthModal />
-      <Toaster />
     </div>
   );
 }

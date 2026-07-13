@@ -108,7 +108,7 @@ export default function PendingUsers() {
 
   const handleDenyUser = async (user: UserStatus) => {
     try {
-      const success = await updateUserStatus(user.id, 'denied', 'Manual denial by admin');
+      const success = await updateUserStatus(user.email, 'denied', 'Manual denial by admin');
       
       if (success) {
         toast.success(`Denied ${user.email}`);

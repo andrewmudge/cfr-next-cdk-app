@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, Trophy, Utensils, Users } from 'lucide-react';
+import { Calendar, Clock, MapPin, Trophy, Utensils, Coffee, Disc, Martini, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ScheduleSection = () => {
@@ -13,7 +13,7 @@ const ScheduleSection = () => {
       {
         time: '09:30 AM',
         title: 'Welcoming Committee',
-        description: 'TBD',
+        description: 'Dana & Christina',
         icon: Users,
         color: 'from-blue-500 to-blue-700',
         bgColor: 'bg-blue-50',
@@ -21,7 +21,7 @@ const ScheduleSection = () => {
         price: undefined,
       },
       {
-        time: '12:00 PM',
+        time: '11:00 AM',
         title: 'Cornhole Tournament',
         description: 'Matt Ferguson and Danette Schutte',
         price: '$10',
@@ -29,15 +29,14 @@ const ScheduleSection = () => {
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
       },
-      // {
-      //   time: '4:00 PM',
-      //   title: 'Food Challenge',
-      //   description: 'Reigning Champs: Team Bennett. Bring your best',
-      //   price: 'TBD',
-      //   icon: Utensils,
-      //   color: 'from-orange-500 to-orange-700',
-      //   bgColor: 'bg-orange-50',
-      // },
+       {
+         time: '5:30 PM',
+         title: 'Drinnk Competition',
+         description: 'Form a team and come up with a cocktail. Bring a hearty appetizer.',
+         icon: Martini,
+         color: 'from-orange-500 to-orange-700',
+         bgColor: 'bg-orange-50',
+       },
       {
         time: '7:00 PM',
         title: 'Friday Night Meeting',
@@ -49,16 +48,34 @@ const ScheduleSection = () => {
       
       {
         time: '9:00 PM',
-        title: 'Danger Zone Dogs - TBD',
+        title: 'Danger Zone Dogs',
         description: 'DZD Chefs are back. Quality products only.',
         subtitle: 'Cleared hot for another year',
         icon: Utensils,
         color: 'from-red-500 to-red-700',
         bgColor: 'bg-red-50',
       },
+
+      {
+        time: '9:00 PM',
+        title: 'Silent Disco',
+        description: 'Come dressed in your groovies.',
+        subtitle: 'Get ready to boogie.',
+        icon: Disc,
+        color: 'from-red-500 to-red-700',
+        bgColor: 'bg-red-50',
+      },
       
     ],
     saturday: [
+      {
+        time: '10:30 AM',
+        title: 'Breakfast',
+        description: 'Coffee, Donuts, Egg Sandwhiches, Crepe Bar',
+        icon: Coffee,
+        color: 'from-yellow-500 to-yellow-700',
+        bgColor: 'bg-yellow-50',
+      },
       {
         time: '11:00 AM',
         title: 'Horseshoe Tournament',
@@ -71,7 +88,7 @@ const ScheduleSection = () => {
       {
         time: '12:00 PM',
         title: 'Dart Tournament',
-        description: 'Matt Greenberg',
+        description: 'Matt Greenberg Proxy Adam Bennett',
         price: '$10',
         icon: Trophy,
         color: 'from-indigo-500 to-indigo-700',
@@ -80,7 +97,7 @@ const ScheduleSection = () => {
       {
         time: '12:00 PM',
         title: 'Kids Games',
-        description: 'Helpers - TBD',
+        description: 'Allie, Kearstyn, Laura, Mackenzie, Lisa, Kari',
         icon: Users,
         color: 'from-pink-500 to-pink-700',
         bgColor: 'bg-pink-50',
@@ -88,23 +105,16 @@ const ScheduleSection = () => {
       {
         time: '07:00 PM',
         title: 'Dinner',
-        description: 'TBD',
+        description: '70s theme potluck. Bring your meat to grill at the community BBQ ',
         icon: Utensils,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
       },
+      
       {
-        time: 'After Dinner',
-        title: 'Games',
-        description: 'Stay put for some after-dinner fun',
-        icon: Trophy,
-        color: 'from-blue-500 to-blue-700',
-        bgColor: 'bg-blue-50',
-      },
-      {
-        time: '9:30 PM',
-        title: 'Charades - TBD',
-        description: 'TBD',
+        time: '9:00 PM',
+        title: 'Charades',
+        description: 'Gianna, Angela, Alexa',
         icon: Users,
         color: 'from-purple-500 to-purple-700',
         bgColor: 'bg-purple-50',
@@ -114,7 +124,7 @@ const ScheduleSection = () => {
       {
         time: '10:30 AM',
         title: 'Brunch',
-        description: '<a href="https://docs.google.com/spreadsheets/d/1XzpNoSARClVuua5iLq5_4X91Ok6k2jwvlaE5P0OmNjc/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Brunch Sign-Up</a>',
+        description: '<a href="https://docs.google.com/spreadsheets/d/12ID446gBZYEo91Zmj_tlLxvkbo3RoQgyQRJA375kBrE/edit?usp=sharing" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Brunch Sign-Up</a>',
         icon: Utensils,
         color: 'from-orange-500 to-orange-700',
         bgColor: 'bg-orange-50',
@@ -147,7 +157,7 @@ const ScheduleSection = () => {
       {
         time: '07:00 PM',
         title: 'Dinner',
-        description: 'TBD',
+        description: 'Burgers',
         icon: Utensils,
         color: 'from-green-500 to-green-700',
         bgColor: 'bg-green-50',
@@ -155,7 +165,7 @@ const ScheduleSection = () => {
       {
         time: '08:30 PM',
         title: 'Raffle',
-        description: 'TBD',
+        description: 'Adam, Andrew, Gino, Tony, Jake, Kate, Dylan, & Hayden',
         icon: Trophy,
         color: 'from-purple-500 to-purple-700',
         bgColor: 'bg-purple-50',
@@ -164,9 +174,9 @@ const ScheduleSection = () => {
   } as Record<string, Event[]>;
 
   const days = [
-    { id: 'friday', label: 'Friday', date: 'Aug 29' },
-    { id: 'saturday', label: 'Saturday', date: 'Aug 30' },
-    { id: 'sunday', label: 'Sunday', date: 'Aug 31' },
+    { id: 'friday', label: 'Friday', date: 'Sep 4' },
+    { id: 'saturday', label: 'Saturday', date: 'Sep 5' },
+    { id: 'sunday', label: 'Sunday', date: 'Sep 6' },
   ];
 
   return (

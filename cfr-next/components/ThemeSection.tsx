@@ -25,16 +25,16 @@ const ThemeSection = () => {
           </h2>
           <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-600 mx-auto rounded-full mb-8"></div>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            The theme this year being created. Stay Tuned.
+            The theme this year is 70's. Let's get Groovy!
           </p>
-          {/* <div className="flex justify-center mt-6">
+           <div className="flex justify-center mt-6">
             <img
-              src="/CFR_LOGO_25.png"
-              alt="CFR 2025 Logo"
+              src="/cfr_logo_26.png"
+              alt="CFR 2026 Logo"
               style={{ width: '75%', maxWidth: '24rem' }}
               className="object-contain"
             />
-          </div> */}
+          </div> 
         </motion.div>
 
        

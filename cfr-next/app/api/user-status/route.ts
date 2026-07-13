@@ -11,18 +11,6 @@ const APPROVED_EMAILS_TABLE = 'ApprovedEmails';
 // Get all approved emails (users)
 export async function GET() {
   try {
-    // Skip database calls during build time
-    if (process.env.NODE_ENV === 'production' && !process.env.AWS_EXECUTION_ENV) {
-      console.log('🔍 API: Skipping database call during build time');
-      return NextResponse.json([], {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-    }
-
     const result = await docClient.send(new ScanCommand({
       TableName: APPROVED_EMAILS_TABLE
     }));
@@ -60,10 +48,10 @@ export async function GET() {
 // Update user status (approve/deny)
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, status, denialReason } = await request.json();
-    if (!id || !status) {
+    const { email, status, denialReason } = await request.json();
+    if (!email || !status) {
       return NextResponse.json(
-        { error: 'ID and status are required' },
+        { error: 'Email and status are required' },
         { status: 400 }
       );
     }
@@ -92,7 +80,7 @@ export async function PATCH(request: NextRequest) {
     }
     await docClient.send(new UpdateCommand({
       TableName: APPROVED_EMAILS_TABLE,
-      Key: { id },
+      Key: { email: email.toLowerCase() },
       UpdateExpression: updateExpression,
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
