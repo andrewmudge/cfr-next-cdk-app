@@ -29,7 +29,7 @@ const ThemeSection = () => {
           </p>
            <div className="flex justify-center mt-6">
             <img
-              src="/cfr_logo_26.png"
+              src="/cfr_logo_26_nobg.png"
               alt="CFR 2026 Logo"
               style={{ width: '75%', maxWidth: '24rem' }}
               className="object-contain"
