@@ -1,7 +1,7 @@
 'use client';
 
 // ...existing code...
-import { DollarSign, Shirt, CreditCard, Users, Baby, Clock, Crown } from 'lucide-react';
+import { DollarSign, Shirt, CreditCard, Users, Baby, Clock, Crown, Dog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const PaymentsSection = () => {
@@ -19,6 +19,13 @@ const PaymentsSection = () => {
       description: 'Kids activities & meals',
       icon: Baby,
       color: 'from-green-500 to-green-700',
+    },
+    {
+      category: 'Dog',
+      price: 5,
+      description: "No seriously...we're being charged for dogs now",
+      icon: Dog,
+      color: 'from-amber-500 to-amber-700',
     },
     {
       category: 'Day Visitor',

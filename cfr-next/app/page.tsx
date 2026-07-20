@@ -17,6 +17,7 @@ import ContactSection from '@/components/ContactSection';
 import PastFlyers from '@/components/PastFlyers';
 import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
+import CountdownPopup from '@/components/CountdownPopup';
 import { AuthProvider, useAuth } from '@/lib/auth/AuthContext';
 
 function AdminRedirectHandler() {
@@ -76,6 +77,7 @@ function HomeContent() {
       <PastFlyers />
       <Footer />
       <AuthModal />
+      <CountdownPopup />
     </div>
   );
 }
