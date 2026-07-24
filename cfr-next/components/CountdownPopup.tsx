@@ -86,7 +86,7 @@ const CountdownPopup = () => {
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-full shadow-md"
                 onClick={() =>
                   window.open(
-                    'https://docs.google.com/forms/d/1YJdANE_g6DNbOnLkZrG29vHp-QViNKmoO5EV2LHoZ8I/edit',
+                    'https://docs.google.com/forms/d/e/1FAIpQLSd40IpAumaAM1-5X9Ed2dgnsJ-4FwKtHO7tL_jA_A8no-ZRMQ/viewform',
                     '_blank',
                     'noopener,noreferrer'
                   )
