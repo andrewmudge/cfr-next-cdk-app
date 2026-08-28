@@ -90,7 +90,7 @@ const ContactSection = () => {
           </div>
         </div>
 
-        {/* FAQ Section */}
+        {/* FAQ Section 
         <div className="mt-16 text-center">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8 rounded-xl shadow-xl max-w-4xl mx-auto">
             <h3 className="text-2xl font-bold mb-6">🏡 Frequently Asked Questions</h3>
@@ -113,7 +113,7 @@ const ContactSection = () => {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </section>
   );
