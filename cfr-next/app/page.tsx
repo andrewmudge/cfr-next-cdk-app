@@ -77,7 +77,7 @@ function HomeContent() {
       <PastFlyers />
       <Footer />
       <AuthModal />
-      <CountdownPopup />
+      {/* <CountdownPopup /> */}
     </div>
   );
 }
