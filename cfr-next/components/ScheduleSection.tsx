@@ -241,9 +241,9 @@ const ScheduleSection = () => {
   } as Record<string, Event[]>;
 
   const days = [
-    { id: 'friday', label: 'Friday', date: 'Sep 4' },
-    { id: 'saturday', label: 'Saturday', date: 'Sep 5' },
-    { id: 'sunday', label: 'Sunday', date: 'Sep 6' },
+    { id: 'friday', label: 'Friday', date: 'Sep 3' },
+    { id: 'saturday', label: 'Saturday', date: 'Sep 4' },
+    { id: 'sunday', label: 'Sunday', date: 'Sep 5' },
   ];
 
   return (
@@ -254,7 +254,7 @@ const ScheduleSection = () => {
             Weekend Schedule
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            2026 Churchwell Family Reunion Activities - A wonderful weekend full of family fun and memorable events
+            2027 Churchwell Family Reunion Activities - A wonderful weekend full of family fun and memorable events
           </p>
         </div>
 

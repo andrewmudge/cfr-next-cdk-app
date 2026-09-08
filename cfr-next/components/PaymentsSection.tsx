@@ -70,7 +70,7 @@ const PaymentsSection = () => {
                 <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
                   <DollarSign className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">2026 Reunion Dues</h3>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">2027 Reunion Dues</h3>
                 <p className="text-slate-600">Pricing for our family weekend</p>
               </div>
 

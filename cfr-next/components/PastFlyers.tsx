@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 // List of flyer images in order from 25 to 17
 const flyerImages = [
+  '/26-cfr-flyer-1.png',
   '/Flyers/25.png',
   '/Flyers/24.png',
   '/Flyers/23.jpg',
