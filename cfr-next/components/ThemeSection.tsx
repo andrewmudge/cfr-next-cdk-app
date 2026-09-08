@@ -21,16 +21,16 @@ const ThemeSection = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6">
-            2026 Theme
+            2027 Theme
           </h2>
           <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-red-600 mx-auto rounded-full mb-8"></div>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            The theme this year is 70&apos;s. Let&apos;s get Groovy!
+            The theme this year is in work!
           </p>
            <div className="flex justify-center mt-6">
             <img
-              src="/cfr_logo_26_nobg.png"
-              alt="CFR 2026 Logo"
+              src="/favicon.png"
+              alt="CFR Logo"
               style={{ width: '75%', maxWidth: '24rem' }}
               className="object-contain"
             />
