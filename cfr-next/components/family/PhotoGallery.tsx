@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDropzone } from 'react-dropzone';
 import { useInView } from 'react-intersection-observer';
+import { toast } from 'sonner';
 import { fetchPhotos, clearPhotoCache } from '@/lib/s3-utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -91,15 +92,21 @@ const PhotoGallery = () => {
         formData.append('file', file);
         formData.append('year', getS3Year(activeYear));
         formData.append('metadata', JSON.stringify(metadata));
-        await fetch('/api/photos/upload', {
+        const response = await fetch('/api/photos/upload', {
           method: 'POST',
           body: formData,
         });
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || `Upload failed (${response.status})`);
+        }
+        toast.success(`Uploaded ${file.name}`);
         // Clear cache to ensure fresh data
         clearPhotoCache(getS3Year(activeYear));
         await loadPhotos(activeYear);
       } catch (error) {
         console.error('Upload failed:', error);
+        toast.error(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }

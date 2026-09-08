@@ -95,11 +95,20 @@ exports.handler = async (event) => {
       s3Key: originalKey,
       sizes: availableSizes
     };
-    
-    await docClient.send(new PutCommand({
-      TableName: PHOTO_METADATA_TABLE,
-      Item: dynamoItem
-    }));
+
+    if (!PHOTO_METADATA_TABLE) {
+      throw new Error('PHOTO_METADATA_TABLE not configured; photo was uploaded to S3 but will not appear in the gallery');
+    }
+
+    try {
+      await docClient.send(new PutCommand({
+        TableName: PHOTO_METADATA_TABLE,
+        Item: dynamoItem
+      }));
+    } catch (err) {
+      console.error('Photo uploaded to S3 but DynamoDB metadata write failed:', err);
+      throw new Error(`Photo uploaded to S3 but failed to save metadata: ${err.message}`);
+    }
 
     // Generate public URL
     const photoUrl = `https://${BUCKET_NAME}.s3.amazonaws.com/${originalKey}`;
