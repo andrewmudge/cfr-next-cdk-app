@@ -46,7 +46,12 @@ function HomeContent() {
     setMounted(true);
   }, []);
 
-
+  // The page renders null until mounted, so a URL hash present on a cold
+  // load (e.g. a shared deep link) isn't auto-scrolled to by the browser.
+  useEffect(() => {
+    if (!mounted || !window.location.hash) return;
+    document.querySelector(window.location.hash)?.scrollIntoView();
+  }, [mounted]);
 
   if (!mounted) return null;
 
