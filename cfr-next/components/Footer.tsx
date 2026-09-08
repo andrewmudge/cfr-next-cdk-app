@@ -25,12 +25,12 @@ const Footer = () => {
                 />
               </div>
               <div>
-                <h3 className="text-xl font-bold">CFR 2026</h3>
+                <h3 className="text-xl font-bold">CFR 2027</h3>
                 <p className="text-sm text-slate-300">Family Reunion</p>
               </div>
             </div>
             <p className="text-slate-300 text-sm leading-relaxed">
-              59 years of family tradition, memories, and togetherness. 
+              60 years of family tradition, memories, and togetherness. 
               Join us for another wonderful gathering at Casa de Fruta.
             </p>
           </motion.div>
@@ -97,7 +97,7 @@ const Footer = () => {
             <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
               <h5 className="font-semibold text-red-300 mb-2">Event Details</h5>
               <p className="text-sm text-slate-300">
-                Sep 3 - Sep 7, 2026<br />
+                Sep 2 - Sep 6, 2027<br />
                 Casa de Fruta, Gilroy CA
               </p>
             </div>
@@ -114,7 +114,7 @@ const Footer = () => {
         >
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <div className="flex items-center space-x-2 text-sm text-slate-300">
-              <span>&copy; 2026 Churchwell Family Reunion. All Rights Reserved.</span>
+              <span>&copy; 2027 Churchwell Family Reunion. All Rights Reserved.</span>
               
               <span>A BOFA Brainchild Production</span>
             </div>

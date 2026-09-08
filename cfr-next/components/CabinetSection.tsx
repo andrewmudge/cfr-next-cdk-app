@@ -7,7 +7,7 @@ const CabinetSection = () => {
   const cabinetMembers = [
     {
       title: 'President',
-      name: 'Morgan Trivitt',
+      name: 'Sarah Churchwell',
       icon: Crown,
       color: 'from-red-600 to-red-700',
       bgColor: 'bg-red-50',
@@ -15,7 +15,7 @@ const CabinetSection = () => {
     },
     {
       title: 'Vice President',
-      name: 'Sarah Churchwell',
+      name: 'Angela Jachetti',
       icon: Shield,
       color: 'from-slate-600 to-slate-700',
       bgColor: 'bg-slate-50',
@@ -60,7 +60,7 @@ const CabinetSection = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
-            2026 Cabinet
+            2027 Cabinet
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Meet the dedicated family members organizing this year&apos;s reunion and ensuring 

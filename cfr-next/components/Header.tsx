@@ -63,7 +63,7 @@ const Header = () => {
               />
             </div>
             <div className="text-white">
-              <h1 className="text-xl font-bold">CFR 2026</h1>
+              <h1 className="text-xl font-bold">CFR 2027</h1>
               <p className="text-xs text-red-300">Family Reunion</p>
             </div>
           </motion.div>

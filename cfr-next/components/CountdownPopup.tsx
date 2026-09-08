@@ -6,7 +6,7 @@ import { X, CreditCard, ClipboardList, Coffee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 
-const REUNION_KICKOFF_DATE = new Date('2026-09-04T00:00:00');
+const REUNION_KICKOFF_DATE = new Date('2027-09-03T00:00:00');
 
 const getDaysUntil = () => {
   const now = new Date();
@@ -67,7 +67,7 @@ const CountdownPopup = () => {
                 {daysLeft}
               </div>
               <p className="text-white text-lg font-semibold mt-1">
-                Days Until We Get Groovy for the 59th Churchwell Family Reunion
+                Days Until the 60th Churchwell Family Reunion
               </p>
             </div>
 
