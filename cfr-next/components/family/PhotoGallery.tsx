@@ -9,6 +9,7 @@ import { useDropzone } from 'react-dropzone';
 import { useInView } from 'react-intersection-observer';
 import { toast } from 'sonner';
 import { fetchPhotos, clearPhotoCache } from '@/lib/s3-utils';
+import { compressImageIfNeeded } from '@/lib/image-compress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Photo {
@@ -88,8 +89,9 @@ const PhotoGallery = () => {
           uploader: 'You',
           date: new Date().toISOString().split('T')[0],
         };
+        const uploadFile = await compressImageIfNeeded(file);
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', uploadFile);
         formData.append('year', getS3Year(activeYear));
         formData.append('metadata', JSON.stringify(metadata));
         const response = await fetch('/api/photos/upload', {
