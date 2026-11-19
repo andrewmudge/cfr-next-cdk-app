@@ -177,6 +177,9 @@ export default function RegisterSection() {
     };
   }, [submitterId]);
   const usingOnFile = !!onFile && useOnFile;
+  // Fields the user types: everything, or just what's missing from the on-file contact.
+  const askEmail = !usingOnFile || !onFile?.email;
+  const askPhone = !usingOnFile || !onFile?.phone;
 
   const submitterReg =
     draft.submitter?.kind === 'existing' ? registered.get(draft.submitter.personId) : undefined;
@@ -223,8 +226,8 @@ export default function RegisterSection() {
   const validate = (): string | null => {
     if (!draft.submitter) return 'Please tell us your name first.';
     if (!usingOnFile && !draft.email.trim() && !draft.phone.trim()) return 'Please add an email or phone number so we can reach you.';
-    if (!usingOnFile && draft.email.trim() && !/^\S+@\S+\.\S+$/.test(draft.email.trim())) return 'That email address looks off.';
-    if (!usingOnFile && draft.phone.trim() && !isValidUSPhone(draft.phone)) return 'Phone number should be 10 digits.';
+    if (askEmail && draft.email.trim() && !/^\S+@\S+\.\S+$/.test(draft.email.trim())) return 'That email address looks off.';
+    if (askPhone && draft.phone.trim() && !isValidUSPhone(draft.phone)) return 'Phone number should be 10 digits.';
     if (attendees.length === 0) return 'Add at least one person who is coming.';
     if (attendees.length > MAX_ATTENDEES) return `Please register at most ${MAX_ATTENDEES} people at a time.`;
     const noAge = attendees.find((a) => !a.ageGroup);
@@ -250,8 +253,8 @@ export default function RegisterSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           submitter: toRef(draft.submitter),
-          email: usingOnFile ? '' : draft.email,
-          phone: usingOnFile ? '' : draft.phone,
+          email: askEmail ? draft.email : '',
+          phone: askPhone ? draft.phone : '',
           useContactOnFile: usingOnFile,
           attendees: attendees.map((a) => ({
             person: toRef(a.person),
@@ -391,8 +394,8 @@ export default function RegisterSection() {
               Signed up by <strong className="text-slate-800">{draft.submitter?.displayName}</strong>
               {usingOnFile ? (
                 <>
-                  {onFile?.email && <> · {onFile.email}</>}
-                  {onFile?.phone && <> · {onFile.phone}</>}
+                  {onFile?.email ? <> · {onFile.email}</> : draft.email && <> · {draft.email}</>}
+                  {onFile?.phone ? <> · {onFile.phone}</> : draft.phone && <> · {draft.phone}</>}
                 </>
               ) : (
                 <>
@@ -491,6 +494,37 @@ export default function RegisterSection() {
                     <p className="text-sm text-green-900">
                       {[onFile?.email, onFile?.phone].filter(Boolean).join(' · ')}
                     </p>
+                    {(!onFile?.email || !onFile?.phone) && (
+                      <div className="space-y-2 pt-2">
+                        <label htmlFor="reg-missing" className="block font-medium text-slate-700">
+                          {onFile?.email ? 'Add your phone number' : 'Add your email'}{' '}
+                          <span className="font-normal text-slate-500">(helps us keep the family contact list current)</span>
+                        </label>
+                        {onFile?.email ? (
+                          <input
+                            id="reg-missing"
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            value={draft.phone}
+                            onChange={(e) => update({ phone: formatPhoneInput(e.target.value) })}
+                            placeholder="(555) 555-5555"
+                            className={inputClass}
+                          />
+                        ) : (
+                          <input
+                            id="reg-missing"
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            value={draft.email}
+                            onChange={(e) => update({ email: e.target.value })}
+                            placeholder="you@example.com"
+                            className={inputClass}
+                          />
+                        )}
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => setUseOnFile(false)}

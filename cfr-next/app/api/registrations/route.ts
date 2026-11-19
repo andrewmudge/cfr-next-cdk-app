@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       submitter: v.submitter,
       email: v.email.toLowerCase(),
       phone: v.phone ? `+1${cleanPhoneNumber(v.phone)}` : '',
-      useContactOnFile: v.useContactOnFile && !v.email && !v.phone,
+      useContactOnFile: v.useContactOnFile,
       attendees: v.attendees.map((a) => ({
         person: a.person,
         ageGroup: a.ageGroup,

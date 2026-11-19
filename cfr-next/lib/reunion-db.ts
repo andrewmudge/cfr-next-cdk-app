@@ -259,18 +259,15 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
   const submitter = resolvePerson(input.submitter, byId, byKey, pendingNew, now);
   if (!submitter) return { ok: false, reason: 'invalid', message: 'We could not find your name. Please pick it again.' };
 
-  // Contact: either what they typed, or what we already have on file for them.
-  let email = input.email || undefined;
-  let phone = input.phone || undefined;
-  if (input.useContactOnFile && !email && !phone) {
-    email = submitter.email;
-    phone = submitter.phone;
-  }
+  // Contact: what they typed, topped up with what's on file (e.g. on-file email + newly added phone).
+  const email = input.email || (input.useContactOnFile ? submitter.email : undefined) || undefined;
+  const phone = input.phone || (input.useContactOnFile ? submitter.phone : undefined) || undefined;
   if (!email && !phone) {
     return { ok: false, reason: 'invalid', message: 'Please add an email or phone number so we can reach you.' };
   }
-  // Remember newly typed contact info on the submitter's record for next time.
-  const contactChanged = !input.useContactOnFile && (email !== submitter.email || phone !== submitter.phone);
+  // Remember any newly typed contact info on the submitter's record (builds the master contact list).
+  const contactChanged =
+    (!!input.email && input.email !== submitter.email) || (!!input.phone && input.phone !== submitter.phone);
   if (contactChanged && pendingNew.has(submitter.nameKey)) {
     submitter.email = email ?? submitter.email;
     submitter.phone = phone ?? submitter.phone;
