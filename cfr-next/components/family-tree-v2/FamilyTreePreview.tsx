@@ -160,27 +160,35 @@ export default function FamilyTreePreview() {
                   ariaLabel="Find someone in the family"
                 />
               </div>
-              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&>*]:shrink-0">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setRelOpen((o) => !o)}
                   className={cn(
-                    'flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-medium',
+                    'flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-sm font-medium sm:flex-none sm:gap-2 sm:px-4',
                     relOpen ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
                   )}
                 >
-                  <Sparkles className="h-4 w-4" /> How are we related?
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <span>
+                    <span className="sm:hidden">How related?</span>
+                    <span className="hidden sm:inline">How are we related?</span>
+                  </span>
                 </button>
                 <button
                   type="button"
                   aria-pressed={showComing}
                   onClick={() => setShowComing((s) => !s)}
                   className={cn(
-                    'flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-medium',
+                    'flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-sm font-medium sm:flex-none sm:gap-2 sm:px-4',
                     showComing ? 'border-green-600 bg-green-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
                   )}
                 >
-                  <CheckCircle2 className="h-4 w-4" /> Who&apos;s coming in {REUNION_YEAR}
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>
+                    <span className="sm:hidden">Who&apos;s coming</span>
+                    <span className="hidden sm:inline">Who&apos;s coming in {REUNION_YEAR}</span>
+                  </span>
                   {comingIds.size > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{comingIds.size}</span>}
                 </button>
               </div>

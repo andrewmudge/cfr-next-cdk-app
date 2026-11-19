@@ -45,7 +45,6 @@ interface Draft {
   selfActivities: ActivityId[];
   rows: Row[];
   dogs: number;
-  notes: string;
 }
 
 const DRAFT_KEY = `cfr-register-draft-${REUNION_YEAR}-v2`;
@@ -58,7 +57,6 @@ const emptyDraft = (): Draft => ({
   selfActivities: [],
   rows: [],
   dogs: 0,
-  notes: '',
 });
 
 function loadDraft(): Draft {
@@ -263,7 +261,6 @@ export default function RegisterSection() {
             activities: a.activities,
           })),
           dogs: draft.dogs,
-          notes: draft.notes,
           website,
         }),
       });
@@ -422,7 +419,6 @@ export default function RegisterSection() {
                 </div>
               </>
             )}
-            {draft.notes && <p className="text-sm text-slate-600 italic">&ldquo;{draft.notes}&rdquo;</p>}
             <div className="flex flex-col-reverse sm:flex-row gap-3">
               <Button
                 variant="outline"
@@ -742,22 +738,6 @@ export default function RegisterSection() {
                     +
                   </button>
                 </div>
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-2">
-                <label htmlFor="reg-notes" className="block font-medium text-slate-700">
-                  Anything else? <span className="font-normal text-slate-400">(optional)</span>
-                </label>
-                <textarea
-                  id="reg-notes"
-                  rows={2}
-                  maxLength={1000}
-                  value={draft.notes}
-                  onChange={(e) => update({ notes: e.target.value })}
-                  placeholder="Dietary needs, arriving late, etc."
-                  className={`${inputClass} py-3`}
-                />
               </div>
 
               <Button type="submit" size="lg" className="w-full min-h-[56px] bg-red-600 hover:bg-red-700 text-white text-lg">
