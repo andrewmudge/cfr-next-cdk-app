@@ -50,7 +50,8 @@ const Footer = () => {
                 { label: 'Cabinet', href: '#cabinet' },
                 { label: 'Schedule', href: '#schedule' },
                 { label: 'Games', href: '#games' },
-                { label: 'Family Only', href: '#family-only' },
+                { label: 'Sign Up', href: '#register' },
+                { label: 'Family Album', href: '#family-album' },
                 { label: 'Payments', href: '#payments' },
                 { label: 'Contact', href: '#contact' },
               ].map((link) => (

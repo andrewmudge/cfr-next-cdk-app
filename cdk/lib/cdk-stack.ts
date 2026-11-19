@@ -1,6 +1,6 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
-import { Stack, StackProps, CfnOutput, Duration } from 'aws-cdk-lib';
+import { Stack, StackProps, CfnOutput, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
@@ -40,6 +40,23 @@ export class CfrNextStack extends Stack {
       partitionKey: { name: 'year', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'photoId', type: dynamodb.AttributeType.STRING },
       tableName: 'PhotoMetadata'
+    });
+
+    // DynamoDB Table: family members used for sign-up name autocomplete
+    const familyMembersTable = new dynamodb.Table(this, 'FamilyMembers', {
+      partitionKey: { name: 'personId', type: dynamodb.AttributeType.STRING },
+      tableName: 'FamilyMembers',
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    // DynamoDB Table: reunion registrations (year + PERSON#id / SUBMISSION#id)
+    const registrationsTable = new dynamodb.Table(this, 'ReunionRegistrations', {
+      partitionKey: { name: 'year', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
+      tableName: 'ReunionRegistrations',
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
     });
 
     // Cognito User Pool
@@ -162,6 +179,14 @@ export class CfrNextStack extends Stack {
 
     bucket.grantReadWrite(appRunnerRole);
     approvedUsersTable.grantReadWriteData(appRunnerRole);
+    familyMembersTable.grantReadWriteData(appRunnerRole);
+    registrationsTable.grantReadWriteData(appRunnerRole);
+
+    // The Next.js app talks to DynamoDB with the cfr-dev IAM user's access keys,
+    // so it also needs read/write on the sign-up tables.
+    const cfrDevUser = iam.User.fromUserName(this, 'CfrDevUser', 'cfr-dev');
+    familyMembersTable.grantReadWriteData(cfrDevUser);
+    registrationsTable.grantReadWriteData(cfrDevUser);
 
     // App Runner Service (placeholder image initially)
     new apprunner.Service(this, 'MyNextAppService', {

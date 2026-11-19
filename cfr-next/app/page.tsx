@@ -11,14 +11,15 @@ import ThemeSection from '@/components/ThemeSection';
 import ScheduleSection from '@/components/ScheduleSection';
 import NewsletterSection from '@/components/NewsletterSection';
 // ...existing code...
-import FamilyOnlySection from '@/components/FamilyOnlySection';
+import FamilyAlbumSection from '@/components/FamilyAlbumSection';
+import RegisterSection from '@/components/register/RegisterSection';
 import PaymentsSection from '@/components/PaymentsSection';
 import ContactSection from '@/components/ContactSection';
 import PastFlyers from '@/components/PastFlyers';
 import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
 import CountdownPopup from '@/components/CountdownPopup';
-import { AuthProvider, useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 function AdminRedirectHandler() {
   const { user, openAuthModal } = useAuth();
@@ -73,8 +74,9 @@ function HomeContent() {
           <ThemeSection />
           <ScheduleSection />
           <NewsletterSection />
+          <RegisterSection />
           {/* ...removed unused GamesSection... */}
-          <FamilyOnlySection />
+          <FamilyAlbumSection />
           <PaymentsSection />
           <ContactSection />
         </motion.div>
@@ -88,9 +90,6 @@ function HomeContent() {
 }
 
 export default function Home() {
-  return (
-    <AuthProvider>
-      <HomeContent />
-    </AuthProvider>
-  );
+  // AuthProvider is supplied by app/layout.tsx
+  return <HomeContent />;
 }

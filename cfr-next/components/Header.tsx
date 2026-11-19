@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, X, LogIn, User } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
-  const { user, signOut, openAuthModal } = useAuth();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -23,8 +23,9 @@ const Header = () => {
     { href: '#cabinet', label: 'Cabinet' },
     { href: '#theme', label: 'Theme' },
     { href: '#schedule', label: 'Schedule' },
+    { href: '#register', label: 'Sign Up' },
     // { href: '#games', label: 'Games' },
-    { href: '#family-only', label: 'Family Only' },
+    { href: '#family-album', label: 'Family Album' },
     { href: '#payments', label: 'Payments' },
     { href: '#contact', label: 'Contact' },
   ];
@@ -84,37 +85,28 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Auth Section */}
-          <div className="hidden lg:flex items-center space-x-4">
-            {user ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2 text-white">
-                  <User className="w-4 h-4" />
-                  <span className="text-sm">
-                    {user.attributes?.given_name || user.username}
-                  </span>
-                </div>
-                <Button
-                  onClick={signOut}
-                  variant="outline"
-                  size="sm"
-                  className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white"
-                >
-                  Sign Out
-                </Button>
+          {/* Auth Section: only shown when signed in (admin signs in via /?admin=true) */}
+          {user && (
+            <div className="hidden lg:flex items-center space-x-3">
+              <div className="flex items-center space-x-2 text-white">
+                <User className="w-4 h-4" />
+                <span className="text-sm">
+                  {user.attributes?.given_name || user.username}
+                </span>
               </div>
-            ) : (
+              <a href="/admin" className="text-sm text-red-300 hover:text-white">
+                Admin
+              </a>
               <Button
-                onClick={openAuthModal}
+                onClick={signOut}
                 variant="outline"
                 size="sm"
                 className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white"
               >
-                <LogIn className="w-4 h-4 mr-2" />
-                Log In
+                Sign Out
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Mobile Menu Button */}
           <button
@@ -143,33 +135,24 @@ const Header = () => {
                   {item.label}
                 </button>
               ))}
-              <div className="pt-3 border-t border-slate-700">
-                {user ? (
-                  <div className="space-y-2">
-                    <div className="text-white text-sm">
-                      Welcome, {user.attributes?.given_name || user.username}
-                    </div>
-                    <Button
-                      onClick={signOut}
-                      variant="outline"
-                      size="sm"
-                      className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white w-full"
-                    >
-                      Sign Out
-                    </Button>
+              {user && (
+                <div className="pt-3 border-t border-slate-700 space-y-2">
+                  <div className="text-white text-sm">
+                    Welcome, {user.attributes?.given_name || user.username}
                   </div>
-                ) : (
+                  <a href="/admin" className="block text-red-300 hover:text-white py-1">
+                    Admin
+                  </a>
                   <Button
-                    onClick={openAuthModal}
+                    onClick={signOut}
                     variant="outline"
                     size="sm"
                     className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white w-full"
                   >
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Log In
+                    Sign Out
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </motion.nav>
         )}

@@ -19,7 +19,7 @@ const newEmails = ["abennett09@yahoo.com"
 ];
 
 // Optionally, also load from CSV if you want to batch upload again:
-// const FILE_PATH = path.join(__dirname, "public/2025-cfr-email.csv");
+// const FILE_PATH = path.join(__dirname, "data/2025-cfr-email.csv");
 // const fileContent = fs.existsSync(FILE_PATH) ? fs.readFileSync(FILE_PATH, "utf-8") : "";
 // const csvEmails = fileContent
 //   .split(/\r?\n/)

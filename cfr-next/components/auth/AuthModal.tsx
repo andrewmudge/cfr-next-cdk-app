@@ -193,18 +193,18 @@ const AuthModal = () => {
                 />
               </div>
               <h2 className="text-2xl font-bold text-slate-800">
-                {authStep === 'signup' ? 'Join the Family' : 
+                {authStep === 'signup' ? 'Create an Account' : 
                  authStep === 'verify' ? 'Verify Your Email' :
                  authStep === 'reset' ? 'Reset Password' :
                  authStep === 'confirmReset' ? 'Set New Password' :
                  'Welcome Back'}
               </h2>
               <p className="text-gray-600 mt-2">
-                {authStep === 'signup' ? 'Create your account to access family-only content' :
+                {authStep === 'signup' ? 'Create an account to help manage the site' :
                  authStep === 'verify' ? 'Enter the code sent to your email' :
                  authStep === 'reset' ? 'Enter your email to reset password' :
                  authStep === 'confirmReset' ? 'Enter code and new password' :
-                 'Sign in to access exclusive family content'}
+                 'Sign in to manage the site'}
               </p>
             </div>
           </div>

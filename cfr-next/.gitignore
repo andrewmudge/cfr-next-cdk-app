@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# contact lists (emails/phones) — never commit or serve from public/
+/data/
