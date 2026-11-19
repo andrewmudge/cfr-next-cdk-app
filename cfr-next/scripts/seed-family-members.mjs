@@ -36,6 +36,12 @@ const SKIP_COGNITO = flag('--skip-cognito');
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'us-east-1_o0wJlnxyH';
 const TABLE = process.env.FAMILY_MEMBERS_TABLE || 'FamilyMembers';
 const TREE = path.resolve(ROOT, opt('--tree', 'public/FamilyTree.html'));
+// People removed from the sign-up list on request. They're skipped on every re-seed.
+const EXCLUDE_IDS = new Set([
+  'ft_G51PX', // Angela Mudge (removed 2026-11-19)
+]);
+// Same people by name, so they aren't re-added from the sign-up CSV or Cognito accounts.
+const EXCLUDE_NAMES = new Set(['angela mudge']);
 const SIGNUP_NAME = '2025_Reunion_Sign-Up_2025-07-05_22_46_52.csv';
 const SIGNUP = path.resolve(
   ROOT,
@@ -128,6 +134,7 @@ for (const r of treeRows) {
     skippedBlank++;
     continue;
   }
+  if (EXCLUDE_IDS.has(`ft_${r.ID}`)) continue;
   const key = nameKey(given, family);
   const item = {
     personId: `ft_${r.ID}`,
@@ -192,6 +199,7 @@ if (fs.existsSync(SIGNUP)) {
       continue;
     }
     const key = nameKey(given, family);
+    if (EXCLUDE_NAMES.has(key)) continue;
     addContact(key, normEmail(r.email), normPhone(r.phoneNumber));
     if (byKey.has(key)) continue;
     const item = {
@@ -229,6 +237,7 @@ if (!SKIP_COGNITO) {
       const compact = nameKey(given, family).replace(/ /g, '');
       const match = [...byKey.values()].find((it) => it.nameKey.replace(/ /g, '') === compact);
       const key = match ? match.nameKey : nameKey(given, family);
+      if (EXCLUDE_NAMES.has(key)) continue;
       addContact(key, normEmail(a.email), normPhone(a.phone_number));
       if (byKey.has(key)) continue;
       const item = {

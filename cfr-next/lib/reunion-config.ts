@@ -97,6 +97,8 @@ export interface PublicPerson {
   familyName: string;
   nickname?: string;
   birthSurname?: string;
+  /** Extra text to tell same-name people apart, e.g. "child of Bill & Sarah-Beth". */
+  hint?: string;
 }
 
 export interface RegisteredPerson {

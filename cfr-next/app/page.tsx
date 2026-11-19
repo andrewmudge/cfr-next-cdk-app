@@ -16,6 +16,7 @@ import RegisterSection from '@/components/register/RegisterSection';
 import PaymentsSection from '@/components/PaymentsSection';
 import ContactSection from '@/components/ContactSection';
 import PastFlyers from '@/components/PastFlyers';
+import FamilyTreePreview from '@/components/family-tree-v2/FamilyTreePreview';
 import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
 import CountdownPopup from '@/components/CountdownPopup';
@@ -82,6 +83,7 @@ function HomeContent() {
         </motion.div>
       </main>
       <PastFlyers />
+      <FamilyTreePreview />
       <Footer />
       <AuthModal />
       {/*<CountdownPopup /> */}

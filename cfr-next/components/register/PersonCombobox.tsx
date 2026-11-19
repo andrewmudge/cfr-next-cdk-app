@@ -196,7 +196,7 @@ export default function PersonCombobox({
             }
             const reg = registered.get(opt.person.id);
             // Maiden names still match when typed, but aren't shown.
-            const subtitle = opt.person.nickname ? `“${opt.person.nickname}”` : '';
+            const subtitle = [opt.person.nickname && `“${opt.person.nickname}”`, opt.person.hint].filter(Boolean).join(' · ');
             return (
               <li
                 key={opt.person.id}
