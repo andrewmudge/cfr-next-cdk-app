@@ -295,15 +295,23 @@ do {
   ExclusiveStartKey = out.LastEvaluatedKey;
 } while (ExclusiveStartKey);
 
-for (const it of items) {
+const TREE_FIELDS = ['inTree', 'motherId', 'fatherId', 'partnerIds', 'friendIds', 'gender', 'born', 'died', 'updatedAt', 'updatedBy'];
+for (let i = 0; i < items.length; i++) {
+  const it = items[i];
   const prev = existing.get(it.personId);
-  if (prev) {
-    it.createdAt = prev.createdAt ?? it.createdAt;
-    if (typeof prev.verified === 'boolean') it.verified = prev.verified;
-    // Keep contact info people gave at sign-up when the sources have none.
-    if (!it.email && prev.email) it.email = prev.email;
-    if (!it.phone && prev.phone) it.phone = prev.phone;
+  if (!prev) continue;
+  if (prev.inTree) {
+    // The family tree is edited on the site now: keep the record exactly as it is,
+    // only filling in contact details it doesn't have yet.
+    items[i] = { ...prev, email: prev.email ?? it.email, phone: prev.phone ?? it.phone };
+    continue;
   }
+  it.createdAt = prev.createdAt ?? it.createdAt;
+  if (typeof prev.verified === 'boolean') it.verified = prev.verified;
+  // Keep contact info people gave at sign-up when the sources have none.
+  if (!it.email && prev.email) it.email = prev.email;
+  if (!it.phone && prev.phone) it.phone = prev.phone;
+  for (const f of TREE_FIELDS) if (prev[f] !== undefined) it[f] = prev[f];
 }
 
 for (let i = 0; i < items.length; i += 25) {

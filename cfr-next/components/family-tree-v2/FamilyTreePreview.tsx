@@ -8,6 +8,8 @@ import { relate, type Relationship } from '@/lib/family-tree/relationship';
 import type { TreeData } from '@/lib/family-tree/types';
 import { REUNION_YEAR, type PublicPerson, type RegisteredPerson } from '@/lib/reunion-config';
 import PersonCombobox, { type SelectedPerson } from '@/components/register/PersonCombobox';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { isAdminEmail } from '@/lib/admin-client';
 import TreeCanvas, { type TreeCanvasHandle } from './TreeCanvas';
 import PersonPanel from './PersonPanel';
 import RelationshipFinder from './RelationshipFinder';
@@ -19,6 +21,9 @@ export default function FamilyTreePreview() {
   const [g, setG] = useState<FamilyGraph | null>(null);
   const [error, setError] = useState(false);
   const [comingIds, setComingIds] = useState<Set<string>>(new Set());
+  const [signupPeople, setSignupPeople] = useState<PublicPerson[]>([]);
+  const { user } = useAuth();
+  const isAdmin = isAdminEmail(user?.email);
 
   const [focusId, setFocusId] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -32,27 +37,40 @@ export default function FamilyTreePreview() {
 
   const canvas = useRef<TreeCanvasHandle>(null);
 
+  const loadTree = useCallback(async () => {
+    const r = await fetch('/api/family-tree', { cache: 'no-store' });
+    if (!r.ok) throw new Error('tree');
+    const graph = new FamilyGraph((await r.json()) as TreeData);
+    setG(graph);
+    return graph;
+  }, []);
+
   useEffect(() => {
-    fetch('/api/family-tree')
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d: TreeData) => {
-        const graph = new FamilyGraph(d);
-        setG(graph);
-        setFocusId(graph.rootId);
-      })
+    loadTree()
+      .then((graph) => setFocusId(graph.rootId))
       .catch(() => setError(true));
     fetch('/api/people')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
-        const ids = (d.registered as RegisteredPerson[])
-          .map((r) => r.personId)
-          .filter((id) => id.startsWith('ft_'))
-          .map((id) => id.slice(3));
-        setComingIds(new Set(ids));
+        // Sign-ups use the same IDs as the tree.
+        setComingIds(new Set((d.registered as RegisteredPerson[]).map((r) => r.personId)));
+        setSignupPeople(d.people as PublicPerson[]);
       })
       .catch(() => {});
-  }, []);
+  }, [loadTree]);
+
+  /** After an admin edit: reload, keep the view, optionally select someone. */
+  const onChanged = useCallback(
+    async (selectId?: string | null) => {
+      const graph = await loadTree();
+      setFocusId((f) => (graph.has(f) ? f : graph.rootId));
+      if (selectId === null) setSelectedId(null);
+      else if (selectId && graph.has(selectId)) setSelectedId(selectId);
+      setHighlight(new Set());
+    },
+    [loadTree]
+  );
 
   // Close fullscreen with Escape.
   useEffect(() => {
@@ -76,6 +94,13 @@ export default function FamilyTreePreview() {
         .sort((a, b) => a.displayName.localeCompare(b.displayName)),
     [g]
   );
+
+  // Admin "add existing person": everyone in the tree plus names from sign-ups.
+  const linkablePeople: PublicPerson[] = useMemo(() => {
+    const byId = new Map(people.map((p) => [p.id, p]));
+    for (const p of signupPeople) if (!byId.has(p.id)) byId.set(p.id, p);
+    return [...byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [people, signupPeople]);
 
   const coming = showComing ? comingIds : new Set<string>();
 
@@ -249,6 +274,9 @@ export default function FamilyTreePreview() {
                   g={g}
                   id={selectedId}
                   coming={comingIds.has(selectedId)}
+                  isAdmin={isAdmin}
+                  people={linkablePeople}
+                  onChanged={onChanged}
                   onClose={() => setSelectedId(null)}
                   onPick={(id) => goTo(id, { select: true })}
                   onCenter={(id) => {

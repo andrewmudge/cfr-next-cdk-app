@@ -122,9 +122,9 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
                     key={l.key}
                     d={l.d}
                     fill="none"
-                    stroke={on ? '#ef4444' : l.couple ? '#cbd5e1' : '#94a3b8'}
+                    stroke={on ? '#ef4444' : l.friend ? '#e2e8f0' : l.couple ? '#cbd5e1' : '#94a3b8'}
                     strokeWidth={on ? 3.5 : l.couple ? 2 : 1.75}
-                    strokeDasharray={l.couple ? '4 4' : undefined}
+                    strokeDasharray={l.friend ? '1 5' : l.couple ? '4 4' : undefined}
                     strokeLinecap="round"
                     opacity={hasHighlight && !on ? 0.35 : 1}
                     style={{ transition: 'stroke 200ms, opacity 200ms' }}
@@ -162,6 +162,7 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
                     highlighted={highlight.has(c.id) || c.id === selectedId}
                     dimmed={hasHighlight && !highlight.has(c.id)}
                     coming={coming.has(c.id)}
+                    friendTag={c.asFriend}
                     onClick={() => onSelect(c.id)}
                   />
                 </motion.div>

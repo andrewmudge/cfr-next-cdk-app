@@ -7,6 +7,7 @@ export class FamilyGraph {
   private byId = new Map<string, TreePerson>();
   private kids = new Map<string, string[]>();
   private partnerMap = new Map<string, string[]>();
+  private friendMap = new Map<string, string[]>();
   /** Index of the root couple's child each descendant comes through (their "branch"). */
   private branch = new Map<string, number>();
   readonly branchHeads: string[];
@@ -27,7 +28,20 @@ export class FamilyGraph {
         this.addPartner(p.id, q);
         this.addPartner(q, p.id);
       }
+      for (const q of p.friendIds ?? []) {
+        if (!this.byId.has(q)) continue;
+        for (const [x, y] of [[p.id, q], [q, p.id]]) {
+          const list = this.friendMap.get(x) ?? [];
+          if (!list.includes(y)) this.friendMap.set(x, [...list, y]);
+        }
+      }
     }
+    // Stable order: eldest first where birth years are known, then by name.
+    const born = (id: string) => this.byId.get(id)?.born ?? Number.MAX_SAFE_INTEGER;
+    for (const [parent, list] of this.kids) {
+      this.kids.set(parent, [...list].sort((x, y) => born(x) - born(y) || this.name(x).localeCompare(this.name(y))));
+    }
+
     // Co-parents count as partners for layout purposes.
     for (const p of data.people) {
       if (p.fatherId && p.motherId) {
@@ -85,6 +99,10 @@ export class FamilyGraph {
   }
   partnersOf(id: string): string[] {
     return this.partnerMap.get(id) ?? [];
+  }
+  /** Friends are shown in the tree but aren't family links. */
+  friendsOf(id: string): string[] {
+    return (this.friendMap.get(id) ?? []).filter((f) => !this.partnersOf(id).includes(f));
   }
   /** The partner listed first by the person themselves (their current partner). */
   isCurrentPartner(a: string, b: string) {

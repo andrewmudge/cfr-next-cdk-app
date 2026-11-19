@@ -156,7 +156,11 @@ export default function AdminDashboard() {
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
           <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button 
+            <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
+              {/* The tree is edited in place: tap anyone on the tree while signed in as admin. */}
+              <a href="/#family-tree-preview">Edit Family Tree</a>
+            </Button>
+            <Button
               onClick={() => setShowUserEditor(!showUserEditor)}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >

@@ -5,7 +5,7 @@ export interface Relationship {
   text: string;
   /** Short form, e.g. "2nd cousin, once removed" */
   label: string;
-  kind: 'self' | 'blood' | 'partner' | 'in-law' | 'marriage' | 'none';
+  kind: 'self' | 'blood' | 'partner' | 'friend' | 'in-law' | 'marriage' | 'none';
   /** People along the connection, A → … → B, for highlighting. */
   pathIds: string[];
   /** Best person to center the tree on so the whole path is visible. */
@@ -128,6 +128,10 @@ export function relate(g: FamilyGraph, a: string, b: string): Relationship {
   if (direct) {
     const label = bloodLabel(direct.dA, direct.dB, g.get(b)?.gender, direct.half);
     return { text: `${B} is ${A}'s ${label}.`, label, kind: 'blood', pathIds: direct.path, focusId: direct.common };
+  }
+
+  if (g.friendsOf(a).includes(b)) {
+    return { text: `${B} is ${A}'s friend.`, label: 'friend', kind: 'friend', pathIds: [a, b], focusId: a };
   }
 
   if (g.partnersOf(a).includes(b)) {

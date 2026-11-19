@@ -27,11 +27,11 @@ import {
 } from '@/lib/reunion-config';
 
 // Same client setup as lib/dynamodb-server.ts (credentials from env / default chain).
-const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-1' }), {
+export const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-1' }), {
   marshallOptions: { removeUndefinedValues: true },
 });
 
-const MEMBERS_TABLE = process.env.FAMILY_MEMBERS_TABLE || 'FamilyMembers';
+export const MEMBERS_TABLE = process.env.FAMILY_MEMBERS_TABLE || 'FamilyMembers';
 const REG_TABLE = process.env.REGISTRATIONS_TABLE || 'ReunionRegistrations';
 
 export interface FamilyMemberRecord {
@@ -42,13 +42,27 @@ export interface FamilyMemberRecord {
   birthSurname?: string;
   displayName: string;
   nameKey: string;
-  source: 'familytree' | 'signup2025' | 'account' | 'registration';
+  source: 'familytree' | 'signup2025' | 'account' | 'registration' | 'tree';
   verified: boolean;
   /** Server-only. Never returned by public endpoints (see listPublicPeople / getContactHint). */
   email?: string;
   phone?: string; // E.164, e.g. +16615551234
   deceased?: boolean;
   createdAt: string;
+
+  // ---- Family tree (edited on the site by the admin) ----
+  inTree?: boolean;
+  motherId?: string;
+  fatherId?: string;
+  /** Current partner first. Stored on both people. */
+  partnerIds?: string[];
+  /** Stored on both people. */
+  friendIds?: string[];
+  gender?: 'M' | 'F';
+  born?: number;
+  died?: number;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface SubmissionRecord {
@@ -81,6 +95,9 @@ export interface RegisteredAttendee {
 // ---------- Family members (cached) ----------
 
 let membersCache: { at: number; items: FamilyMemberRecord[] } | null = null;
+export const invalidateMembersCache = () => {
+  membersCache = null;
+};
 const CACHE_MS = 60_000;
 
 async function scanAll<T>(table: string): Promise<T[]> {
@@ -358,8 +375,14 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
   if (contactChanged && !pendingNew.has(submitter.nameKey)) {
     const sets: string[] = [];
     const vals: Record<string, string> = {};
-    if (email) (sets.push('email = :e'), (vals[':e'] = email));
-    if (phone) (sets.push('phone = :p'), (vals[':p'] = phone));
+    if (email) {
+      sets.push('email = :e');
+      vals[':e'] = email;
+    }
+    if (phone) {
+      sets.push('phone = :p');
+      vals[':p'] = phone;
+    }
     memberItems.push({
       Update: {
         TableName: MEMBERS_TABLE,

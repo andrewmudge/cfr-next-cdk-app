@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
-import { loadFamilyTree } from '@/lib/family-tree/parse';
+import { loadTreeData } from '@/lib/family-tree/store';
 
-// Built once per deploy from public/FamilyTree.html: replace that file + deploy to update the tree.
-export const dynamic = 'force-static';
+// Read from the FamilyMembers table (edited on the site by the admin). Public: no contact info.
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json(loadFamilyTree());
+  try {
+    return NextResponse.json(await loadTreeData(), { headers: { 'Cache-Control': 'no-store' } });
+  } catch (err) {
+    console.error('GET /api/family-tree failed', err);
+    return NextResponse.json({ error: 'Could not load the family tree.' }, { status: 500 });
+  }
 }

@@ -48,6 +48,8 @@ export class CfrNextStack extends Stack {
       tableName: 'FamilyMembers',
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
+      // The family tree is edited on the site; this lets us restore the table to any point in the last 35 days.
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     // DynamoDB Table: reunion registrations (year + PERSON#id / SUBMISSION#id)

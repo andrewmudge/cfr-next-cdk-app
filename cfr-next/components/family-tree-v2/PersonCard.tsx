@@ -58,10 +58,12 @@ interface CardProps {
   highlighted?: boolean;
   dimmed?: boolean;
   coming?: boolean;
+  /** Shown as someone's friend in this spot. */
+  friendTag?: boolean;
   onClick?: () => void;
 }
 
-export default function PersonCard({ g, id, focused, highlighted, dimmed, coming, onClick }: CardProps) {
+export default function PersonCard({ g, id, focused, highlighted, dimmed, coming, friendTag, onClick }: CardProps) {
   const p = g.get(id);
   if (!p) return null;
   const years = lifeYears(g, id);
@@ -91,6 +93,11 @@ export default function PersonCard({ g, id, focused, highlighted, dimmed, coming
           <span className="block truncate text-[11px] text-slate-400">{years || 'In memory'}</span>
         ) : null}
       </span>
+      {friendTag && (
+        <span className="absolute -top-2 left-3 rounded-full border border-slate-200 bg-white px-1.5 text-[10px] font-medium text-slate-400">
+          friend
+        </span>
+      )}
       {coming && (
         <CheckCircle2 className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-white text-green-600" aria-hidden />
       )}
