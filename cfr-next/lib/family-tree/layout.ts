@@ -1,11 +1,11 @@
 import { hierarchy, tree, type HierarchyPointNode } from 'd3-hierarchy';
 import type { FamilyGraph } from './graph';
 
-export const CARD_W = 156;
+export const CARD_W = 146;
 export const CARD_H = 68;
-const PARTNER_GAP = 18;
-const SIBLING_GAP = 28;
-const COUSIN_GAP = 56;
+const PARTNER_GAP = 14;
+const SIBLING_GAP = 20;
+const COUSIN_GAP = 40;
 const ROW_H = 150;
 const PAD = 60;
 
@@ -13,10 +13,6 @@ export interface CardPos {
   id: string;
   x: number; // top-left
   y: number;
-  /** Has children hidden by a collapse. */
-  collapsed?: boolean;
-  /** Has children (so a collapse toggle makes sense). */
-  hasChildren?: boolean;
   /** Has ancestors above what's drawn (tap to go further up). */
   moreAbove?: boolean;
   /** Drawn as someone's partner rather than as a blood child in this view. */
@@ -44,8 +40,6 @@ interface Unit {
   person: string;
   partners: string[];
   children: Unit[];
-  collapsed: boolean;
-  hasChildren: boolean;
 }
 
 const unitWidth = (u: Unit) => (1 + u.partners.length) * CARD_W + u.partners.length * PARTNER_GAP;
@@ -67,45 +61,32 @@ function elbow(x1: number, y1: number, x2: number, y2: number): string {
 }
 
 /**
- * Focus-person layout: the focus person's parents form the top couple ("anchor"), so the
+ * Full-tree layout (every generation shown). Focus-person based: the focus person's parents form the top couple ("anchor"), so the
  * focus, their siblings and everyone below are shown, with one more generation of
  * ancestors above the anchor couple.
  */
-/** Generations shown below the focus person before branches start folded. */
-const OPEN_GENERATIONS = 2;
-
-/**
- * @param toggled people whose fold state the user flipped from the default
- * @param keepOpen people who must be visible (e.g. a highlighted path); their ancestors stay unfolded
- */
-export function layoutTree(g: FamilyGraph, focusId: string, toggled: Set<string>, keepOpen: Set<string> = new Set()): TreeLayout {
+export function layoutTree(g: FamilyGraph, focusId: string): TreeLayout {
   // The root couple (Patrick & Ollie) is the top of the default view; their parents are
   // still reachable through the "parents" chip.
   const focusParents = focusId === g.rootId ? [] : g.parentsOf(focusId);
   const anchor = focusParents[0] ?? focusId;
   const anchorOther = focusParents[1];
 
-  const focusDepth = anchor === focusId ? 0 : 1;
   const placed = new Set<string>();
-  const build = (person: string, depth: number, preferPartner?: string): Unit => {
+  const build = (person: string, preferPartner?: string): Unit => {
     placed.add(person);
     let partners = g.partnersOf(person).filter((p) => !placed.has(p));
     if (preferPartner && !partners.includes(preferPartner) && !placed.has(preferPartner)) partners.unshift(preferPartner);
     if (preferPartner) partners = [preferPartner, ...partners.filter((p) => p !== preferPartner)];
     partners.forEach((p) => placed.add(p));
     const kids = g.childrenOf(person).filter((k) => !placed.has(k));
-    const mustOpen = kids.some((k) => keepOpen.has(k));
-    const foldedByDefault = depth >= focusDepth + OPEN_GENERATIONS && !mustOpen;
-    const isCollapsed = kids.length > 0 && (toggled.has(person) ? !foldedByDefault : foldedByDefault);
     return {
       person,
       partners,
-      collapsed: isCollapsed,
-      hasChildren: kids.length > 0,
-      children: isCollapsed ? [] : kids.map((k) => build(k, depth + 1)),
+      children: kids.map((k) => build(k)),
     };
   };
-  const rootUnit = build(anchor, 0, anchorOther);
+  const rootUnit = build(anchor, anchorOther);
 
   const root = hierarchy(rootUnit, (u) => u.children);
   const laid = tree<Unit>()
@@ -131,7 +112,6 @@ export function layoutTree(g: FamilyGraph, focusId: string, toggled: Set<string>
         x,
         y,
         asPartner: i > 0,
-        ...(i === 0 ? { collapsed: u.collapsed, hasChildren: u.hasChildren } : {}),
       });
       cardCenter.set(id, { cx: x + CARD_W / 2, top: y });
       if (i > 0) {

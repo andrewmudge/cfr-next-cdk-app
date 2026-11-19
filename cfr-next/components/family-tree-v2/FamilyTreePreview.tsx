@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Home, List, Loader2, Maximize2, Minimize2, Minus, Network, Plus, ScanSearch, Sparkles } from 'lucide-react';
+import { CheckCircle2, Home, Loader2, Maximize2, Minimize2, Minus, Plus, ScanSearch, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FamilyGraph } from '@/lib/family-tree/graph';
 import { relate, type Relationship } from '@/lib/family-tree/relationship';
@@ -11,7 +11,6 @@ import PersonCombobox, { type SelectedPerson } from '@/components/register/Perso
 import TreeCanvas, { type TreeCanvasHandle } from './TreeCanvas';
 import PersonPanel from './PersonPanel';
 import RelationshipFinder from './RelationshipFinder';
-import BranchList from './BranchList';
 import { BRANCH_COLORS, MARRIED_IN_COLOR, ROOT_COLOR } from './PersonCard';
 
 const noRegistered = new Map<string, RegisteredPerson>();
@@ -21,14 +20,11 @@ export default function FamilyTreePreview() {
   const [error, setError] = useState(false);
   const [comingIds, setComingIds] = useState<Set<string>>(new Set());
 
-  const [view, setView] = useState<'tree' | 'list'>('tree');
   const [focusId, setFocusId] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [toggled, setToggled] = useState<Set<string>>(new Set());
   const [highlight, setHighlight] = useState<Set<string>>(new Set());
   const [showComing, setShowComing] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [revealId, setRevealId] = useState<string | null>(null);
 
   const [relOpen, setRelOpen] = useState(false);
   const [relA, setRelA] = useState<SelectedPerson | null>(null);
@@ -37,8 +33,6 @@ export default function FamilyTreePreview() {
   const canvas = useRef<TreeCanvasHandle>(null);
 
   useEffect(() => {
-    // Phones start in the list view; the zoomable chart is one tap away.
-    if (window.matchMedia('(max-width: 639px)').matches) setView('list');
     fetch('/api/family-tree')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d: TreeData) => {
@@ -96,19 +90,15 @@ export default function FamilyTreePreview() {
       setFocusId(id);
       if (opts.select) setSelectedId(id);
       setHighlight(opts.line ? new Set(g.lineToTop(id)) : new Set());
-      setRevealId(id);
-      setToggled(new Set()); // fresh default folding around the new focus
     },
     [g]
   );
 
   const showRelation = () => {
     if (!relation || !g) return;
-    setView('tree');
     setFocusId(relation.focusId ?? relation.pathIds[0]);
     setHighlight(new Set(relation.pathIds));
     setSelectedId(null);
-    setToggled(new Set());
   };
 
   if (error) return null;
@@ -139,7 +129,7 @@ export default function FamilyTreePreview() {
                   people={people}
                   registered={noRegistered}
                   value={null}
-                  onChange={(p) => p?.kind === 'existing' && goTo(p.personId, { select: view === 'tree', line: true })}
+                  onChange={(p) => p?.kind === 'existing' && goTo(p.personId, { select: true, line: true })}
                   allowNew={false}
                   placeholder="Find someone in the family…"
                   ariaLabel="Find someone in the family"
@@ -168,24 +158,6 @@ export default function FamilyTreePreview() {
                   <CheckCircle2 className="h-4 w-4" /> Who&apos;s coming in {REUNION_YEAR}
                   {comingIds.size > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{comingIds.size}</span>}
                 </button>
-                <div className="flex rounded-full border border-slate-300 bg-white p-1" role="tablist" aria-label="View">
-                  {(['tree', 'list'] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      role="tab"
-                      aria-selected={view === v}
-                      onClick={() => setView(v)}
-                      className={cn(
-                        'flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-sm font-medium',
-                        view === v ? 'bg-slate-800 text-white' : 'text-slate-600'
-                      )}
-                    >
-                      {v === 'tree' ? <Network className="h-4 w-4" /> : <List className="h-4 w-4" />}
-                      {v === 'tree' ? 'Tree' : 'List'}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -225,29 +197,19 @@ export default function FamilyTreePreview() {
               className={cn(
                 'relative overflow-hidden border border-slate-200 bg-[radial-gradient(circle_at_1px_1px,#e2e8f0_1px,transparent_0)] [background-size:22px_22px]',
                 fullscreen ? 'fixed inset-0 z-50 bg-slate-50' : 'rounded-3xl bg-white shadow-lg',
-                view === 'tree' ? (fullscreen ? '' : 'h-[72vh] min-h-[480px]') : fullscreen ? 'overflow-y-auto' : 'max-h-[72vh] overflow-y-auto'
+                !fullscreen && 'h-[72vh] min-h-[480px]'
               )}
             >
-              {view === 'tree' ? (
-                <>
+              <>
                   <TreeCanvas
                     ref={canvas}
                     g={g}
                     focusId={focusId}
                     selectedId={selectedId}
-                    toggled={toggled}
                     highlight={highlight}
                     coming={coming}
                     onSelect={(id) => setSelectedId(id)}
                     onFocus={(id) => goTo(id)}
-                    onToggleCollapse={(id) =>
-                      setToggled((c) => {
-                        const n = new Set(c);
-                        if (n.has(id)) n.delete(id);
-                        else n.add(id);
-                        return n;
-                      })
-                    }
                   />
                   <div className="absolute bottom-3 left-3 flex flex-row gap-1 rounded-2xl border border-slate-200 bg-white/90 p-1 shadow-md backdrop-blur sm:flex-col sm:gap-1.5 sm:p-1.5">
                     {[
@@ -270,10 +232,7 @@ export default function FamilyTreePreview() {
                       Clear highlight
                     </button>
                   )}
-                </>
-              ) : (
-                <BranchList g={g} coming={coming} highlight={highlight} revealId={revealId} onSelect={(id) => setSelectedId(id)} />
-              )}
+              </>
 
               <button
                 type="button"
@@ -293,7 +252,6 @@ export default function FamilyTreePreview() {
                   onClose={() => setSelectedId(null)}
                   onPick={(id) => goTo(id, { select: true })}
                   onCenter={(id) => {
-                    setView('tree');
                     goTo(id, { select: true });
                   }}
                   onRelate={(id) => {
@@ -304,7 +262,6 @@ export default function FamilyTreePreview() {
                     document.getElementById('family-tree-preview')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                   onShowLine={(id) => {
-                    setView('tree');
                     goTo(id, { select: false, line: true });
                     setFocusId(g.lineToTop(id).at(-1)!);
                   }}

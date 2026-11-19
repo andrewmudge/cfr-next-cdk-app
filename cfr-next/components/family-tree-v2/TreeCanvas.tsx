@@ -3,7 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
 import type { FamilyGraph } from '@/lib/family-tree/graph';
 import { CARD_H, CARD_W, layoutTree } from '@/lib/family-tree/layout';
 import PersonCard from './PersonCard';
@@ -19,23 +19,20 @@ interface Props {
   g: FamilyGraph;
   focusId: string;
   selectedId: string | null;
-  /** People whose fold state was flipped from the default. */
-  toggled: Set<string>;
   highlight: Set<string>;
   coming: Set<string>;
   onSelect: (id: string) => void;
   onFocus: (id: string) => void;
-  onToggleCollapse: (id: string) => void;
 }
 
 const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
-  { g, focusId, selectedId, toggled, highlight, coming, onSelect, onFocus, onToggleCollapse },
+  { g, focusId, selectedId, highlight, coming, onSelect, onFocus },
   ref
 ) {
   const zoomRef = useRef<ReactZoomPanPinchRef>(null);
   const [ready, setReady] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
-  const layout = useMemo(() => layoutTree(g, focusId, toggled, highlight), [g, focusId, toggled, highlight]);
+  const layout = useMemo(() => layoutTree(g, focusId), [g, focusId]);
   const pos = useMemo(() => new Map(layout.cards.map((c) => [c.id, c])), [layout]);
 
   const centerOn = useCallback(
@@ -90,7 +87,6 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
   );
 
   // Re-center when the focus changes; when something is highlighted, fit all of it.
-  // Folding/unfolding (toggled) deliberately doesn't move the view.
   const lastKey = useRef('');
   useEffect(() => {
     if (!ready) return; // the zoom library resets the view while it initializes
@@ -168,22 +164,6 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
                     coming={coming.has(c.id)}
                     onClick={() => onSelect(c.id)}
                   />
-                  {c.hasChildren && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleCollapse(c.id)}
-                      className="ft-nopan absolute -bottom-3.5 left-1/2 flex h-6 -translate-x-1/2 items-center gap-0.5 rounded-full border border-slate-200 bg-white px-2 text-[11px] text-slate-500 shadow-sm hover:text-slate-800"
-                      aria-label={c.collapsed ? `Show ${g.name(c.id)}'s children` : `Hide ${g.name(c.id)}'s children`}
-                    >
-                      {c.collapsed ? (
-                        <>
-                          <ChevronDown className="h-3 w-3" /> {g.childrenOf(c.id).length}
-                        </>
-                      ) : (
-                        <ChevronUp className="h-3 w-3" />
-                      )}
-                    </button>
-                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
