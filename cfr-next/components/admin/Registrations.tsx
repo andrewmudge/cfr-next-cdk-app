@@ -3,16 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { ClipboardList, Download, Loader2, RefreshCw, UserCheck } from 'lucide-react';
+import { ClipboardList, Download, Loader2, RefreshCw, Trash2, UserCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ACTIVITIES, type ActivityId } from '@/lib/reunion-config';
+import { ACTIVITIES, formatDollars, rateLabel, type ActivityId, type AdultRateId, type AgeGroupId } from '@/lib/reunion-config';
 
 interface Submission {
   submissionId: string;
   submitterName: string;
   email?: string;
   phone?: string;
-  attendees: { personId: string; displayName: string; activities: ActivityId[] }[];
+  attendees: {
+    personId: string;
+    displayName: string;
+    activities: ActivityId[];
+    ageGroup?: AgeGroupId;
+    adultRate?: AdultRateId;
+    duesCents?: number;
+  }[];
+  dogs?: number;
+  duesTotalCents?: number;
   notes?: string;
   createdAt: string;
 }
@@ -73,11 +82,28 @@ export default function Registrations() {
   );
 
   const downloadCsv = () => {
-    const header = ['Name', ...ACTIVITIES.map((a) => a.label), 'Signed up by', 'Email', 'Phone', 'Notes', 'Submitted'];
+    const header = [
+      'Name',
+      'Age group',
+      'Dues',
+      ...ACTIVITIES.map((a) => a.label),
+      'Signed up by',
+      'Family dogs',
+      'Family total due',
+      'Email',
+      'Phone',
+      'Notes',
+      'Submitted',
+    ];
+    const money = (c?: number) => (c === undefined ? '' : (c / 100).toFixed(2));
     const rows = people.map((p) => [
       p.displayName,
+      p.ageGroup ? rateLabel(p.ageGroup, p.adultRate) : '',
+      money(p.duesCents),
       ...ACTIVITIES.map((a) => (p.activities.includes(a.id) ? 'Y' : '')),
       p.submitterName,
+      String(p.s.dogs ?? ''),
+      money(p.s.duesTotalCents),
       p.s.email ?? '',
       p.s.phone ?? '',
       p.s.notes ?? '',
@@ -90,6 +116,46 @@ export default function Registrations() {
     a.download = `cfr-${year}-registrations.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const deleteFamily = async (s: Submission) => {
+    const names = s.attendees.map((a) => a.displayName).join(', ');
+    if (!window.confirm(`Delete the whole sign-up from ${s.submitterName}?\n\n${names}\n\nThey can sign up again afterwards. This can't be undone.`)) return;
+    setBusy(s.submissionId);
+    try {
+      const res = await fetch(`/api/admin/registrations/${encodeURIComponent(s.submissionId)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setSubs((all) => all.filter((x) => x.submissionId !== s.submissionId));
+      toast.success(`Deleted ${s.submitterName}'s sign-up`);
+    } catch {
+      toast.error('Could not delete. Try refreshing.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removePerson = async (s: Submission, personId: string, name: string) => {
+    const last = s.attendees.length === 1;
+    const msg = last
+      ? `${name} is the only person on this sign-up, so the whole sign-up will be deleted. Continue?`
+      : `Remove ${name} from ${s.submitterName}'s sign-up? The family's dues will be recalculated.`;
+    if (!window.confirm(msg)) return;
+    setBusy(s.submissionId);
+    try {
+      const res = await fetch(
+        `/api/admin/registrations/${encodeURIComponent(s.submissionId)}/people/${encodeURIComponent(personId)}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) throw new Error();
+      toast.success(`Removed ${name}`);
+      await load(); // pick up the recalculated dues
+    } catch {
+      toast.error('Could not remove. Try refreshing.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const verify = async (personId: string) => {
@@ -169,6 +235,7 @@ export default function Registrations() {
                     <th className="py-2 pr-4">Contact</th>
                     <th className="py-2 pr-4">People & activities</th>
                     <th className="py-2 pr-4">When</th>
+                    <th className="py-2"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -184,17 +251,49 @@ export default function Registrations() {
                           {s.attendees.map((a) => (
                             <li key={a.personId}>
                               <span className="text-white">{a.displayName}</span>{' '}
+                              <span className="text-xs text-slate-400">({rateLabel(a.ageGroup, a.adultRate)})</span>{' '}
                               <span className="text-gray-400">
                                 {a.activities.length
                                   ? ACTIVITIES.filter((x) => a.activities.includes(x.id)).map((x) => x.emoji).join(' ')
                                   : '-'}
-                              </span>
+                              </span>{' '}
+                              <button
+                                type="button"
+                                onClick={() => removePerson(s, a.personId, a.displayName)}
+                                disabled={busy === s.submissionId}
+                                className="ml-1 align-middle text-slate-500 hover:text-red-400 disabled:opacity-40"
+                                title={`Remove ${a.displayName}`}
+                                aria-label={`Remove ${a.displayName}`}
+                              >
+                                <X className="inline w-4 h-4" />
+                              </button>
                             </li>
                           ))}
                         </ul>
+                        {(s.dogs ?? 0) > 0 && <p className="mt-1 text-gray-400">🐕 {s.dogs}</p>}
+                        {s.duesTotalCents !== undefined && (
+                          <p className="mt-1 text-gray-300">Due: {s.duesTotalCents === 0 ? '$0' : formatDollars(s.duesTotalCents)}</p>
+                        )}
                         {s.notes && <p className="mt-2 italic text-gray-400">&ldquo;{s.notes}&rdquo;</p>}
                       </td>
                       <td className="py-3 pr-4 whitespace-nowrap">{fmt(s.createdAt)}</td>
+                      <td className="py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deleteFamily(s)}
+                          disabled={busy === s.submissionId}
+                          className="border-red-500/60 text-red-300 hover:bg-red-500 hover:text-white h-8"
+                        >
+                          {busy === s.submissionId ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4 mr-1" /> Delete
+                            </>
+                          )}
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

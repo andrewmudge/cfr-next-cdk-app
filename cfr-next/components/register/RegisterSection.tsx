@@ -7,29 +7,48 @@ import { Button } from '@/components/ui/button';
 import PersonCombobox, { formatRegistered, selectedKey, type SelectedPerson } from './PersonCombobox';
 import ActivityChips from './ActivityChips';
 import AlreadyRegisteredLookup from './AlreadyRegisteredLookup';
+import AgeGroupPicker from './AgeGroupPicker';
 import { formatPhoneInput, isValidUSPhone } from '@/lib/phone-utils';
 import {
   ACTIVITIES,
   MAX_ATTENDEES,
+  MAX_DOGS,
   REUNION_YEAR,
+  allowedActivities,
+  familyDues,
+  formatDollars,
   type ActivityId,
+  type AdultRateId,
+  type AgeGroupId,
+  type DuesLine,
   type PublicPerson,
   type RegisteredPerson,
 } from '@/lib/reunion-config';
 
-type Row = { key: string; person: SelectedPerson | null; activities: ActivityId[] };
+type Row = {
+  key: string;
+  person: SelectedPerson | null;
+  ageGroup?: AgeGroupId;
+  adultRate?: AdultRateId;
+  activities: ActivityId[];
+};
+
+type Attendee = { person: SelectedPerson; ageGroup?: AgeGroupId; adultRate?: AdultRateId; activities: ActivityId[] };
 
 interface Draft {
   submitter: SelectedPerson | null;
   email: string;
   phone: string;
   attending: boolean;
+  selfAgeGroup?: AgeGroupId;
+  selfAdultRate?: AdultRateId;
   selfActivities: ActivityId[];
   rows: Row[];
+  dogs: number;
   notes: string;
 }
 
-const DRAFT_KEY = `cfr-register-draft-${REUNION_YEAR}`;
+const DRAFT_KEY = `cfr-register-draft-${REUNION_YEAR}-v2`;
 const newRow = (): Row => ({ key: Math.random().toString(36).slice(2), person: null, activities: [] });
 const emptyDraft = (): Draft => ({
   submitter: null,
@@ -38,6 +57,7 @@ const emptyDraft = (): Draft => ({
   attending: true,
   selfActivities: [],
   rows: [],
+  dogs: 0,
   notes: '',
 });
 
@@ -59,6 +79,33 @@ const activityLabel = (ids: ActivityId[]) =>
         .map((a) => `${a.emoji} ${a.label}`)
         .join('  ');
 
+/** Changing age group drops any games that group can't play. */
+const withAge = (activities: ActivityId[], ageGroup: AgeGroupId) => {
+  const allowed = allowedActivities(ageGroup);
+  return activities.filter((a) => allowed.includes(a));
+};
+
+function DuesSummary({ lines, totalCents }: { lines: DuesLine[]; totalCents: number }) {
+  return (
+    <div className="rounded-xl border-2 border-slate-200 overflow-hidden">
+      <ul className="divide-y divide-slate-100">
+        {lines.map((l, i) => (
+          <li key={i} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+            <span className="text-slate-700">
+              {l.label} <span className="text-slate-400">· {l.detail}</span>
+            </span>
+            <span className="font-medium text-slate-800">{formatDollars(l.cents)}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-center justify-between bg-slate-800 px-4 py-3 text-white">
+        <span className="font-semibold">Total due</span>
+        <span className="text-2xl font-bold">{totalCents === 0 ? '$0' : formatDollars(totalCents)}</span>
+      </div>
+    </div>
+  );
+}
+
 const inputClass =
   'w-full rounded-xl border-2 border-slate-300 bg-white px-4 min-h-[52px] text-base text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200';
 
@@ -72,7 +119,12 @@ export default function RegisterSection() {
   const [step, setStep] = useState<'form' | 'review' | 'done'>('form');
   const [submitting, setSubmitting] = useState(false);
   const [removedNotice, setRemovedNotice] = useState<RegisteredPerson[]>([]);
-  const [done, setDone] = useState<{ displayName: string; activities: ActivityId[] }[]>([]);
+  const [done, setDone] = useState<{
+    attendees: { displayName: string; activities: ActivityId[] }[];
+    lines: DuesLine[];
+    totalCents: number;
+    submitterName: string;
+  } | null>(null);
   const [website, setWebsite] = useState(''); // honeypot
 
   const load = useCallback(async () => {
@@ -107,6 +159,25 @@ export default function RegisterSection() {
   const updateRow = (key: string, patch: Partial<Row>) =>
     setDraft((d) => ({ ...d, rows: d.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) }));
 
+  // Masked contact info on file for the selected submitter (real values never reach the browser).
+  const [onFile, setOnFile] = useState<{ email?: string; phone?: string } | null>(null);
+  const [useOnFile, setUseOnFile] = useState(true);
+  const submitterId = draft.submitter?.kind === 'existing' ? draft.submitter.personId : null;
+  useEffect(() => {
+    setOnFile(null);
+    setUseOnFile(true);
+    if (!submitterId) return;
+    let cancelled = false;
+    fetch(`/api/people/contact-hint?personId=${encodeURIComponent(submitterId)}`)
+      .then((r) => (r.ok ? r.json() : { onFile: null }))
+      .then((d) => !cancelled && setOnFile(d.onFile ?? null))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [submitterId]);
+  const usingOnFile = !!onFile && useOnFile;
+
   const submitterReg =
     draft.submitter?.kind === 'existing' ? registered.get(draft.submitter.personId) : undefined;
   const selfAttending = draft.attending && !submitterReg;
@@ -120,22 +191,44 @@ export default function RegisterSection() {
   }, [draft, selfAttending]);
 
   const attendees = useMemo(() => {
-    const list: { person: SelectedPerson; activities: ActivityId[] }[] = [];
-    if (draft.submitter && selfAttending) list.push({ person: draft.submitter, activities: draft.selfActivities });
-    draft.rows.forEach((r) => r.person && list.push({ person: r.person, activities: r.activities }));
+    const list: Attendee[] = [];
+    if (draft.submitter && selfAttending) {
+      list.push({
+        person: draft.submitter,
+        ageGroup: draft.selfAgeGroup,
+        adultRate: draft.selfAdultRate,
+        activities: draft.selfActivities,
+      });
+    }
+    draft.rows.forEach(
+      (r) => r.person && list.push({ person: r.person, ageGroup: r.ageGroup, adultRate: r.adultRate, activities: r.activities })
+    );
     return list;
   }, [draft, selfAttending]);
+
+  const reviewDues = useMemo(
+    () =>
+      familyDues(
+        attendees
+          .filter((a) => a.ageGroup)
+          .map((a) => ({ displayName: a.person.displayName, ageGroup: a.ageGroup!, adultRate: a.adultRate })),
+        draft.dogs
+      ),
+    [attendees, draft.dogs]
+  );
 
   const blocked = (r: RegisteredPerson) =>
     toast.info(`${r.displayName} is already ${formatRegistered(r)}.`, { duration: 6000 });
 
   const validate = (): string | null => {
     if (!draft.submitter) return 'Please tell us your name first.';
-    if (!draft.email.trim() && !draft.phone.trim()) return 'Please add an email or phone number so we can reach you.';
-    if (draft.email.trim() && !/^\S+@\S+\.\S+$/.test(draft.email.trim())) return 'That email address looks off.';
-    if (draft.phone.trim() && !isValidUSPhone(draft.phone)) return 'Phone number should be 10 digits.';
+    if (!usingOnFile && !draft.email.trim() && !draft.phone.trim()) return 'Please add an email or phone number so we can reach you.';
+    if (!usingOnFile && draft.email.trim() && !/^\S+@\S+\.\S+$/.test(draft.email.trim())) return 'That email address looks off.';
+    if (!usingOnFile && draft.phone.trim() && !isValidUSPhone(draft.phone)) return 'Phone number should be 10 digits.';
     if (attendees.length === 0) return 'Add at least one person who is coming.';
     if (attendees.length > MAX_ATTENDEES) return `Please register at most ${MAX_ATTENDEES} people at a time.`;
+    const noAge = attendees.find((a) => !a.ageGroup);
+    if (noAge) return `Please pick an age group for ${noAge.person.displayName}.`;
     return null;
   };
 
@@ -157,9 +250,16 @@ export default function RegisterSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           submitter: toRef(draft.submitter),
-          email: draft.email,
-          phone: draft.phone,
-          attendees: attendees.map((a) => ({ person: toRef(a.person), activities: a.activities })),
+          email: usingOnFile ? '' : draft.email,
+          phone: usingOnFile ? '' : draft.phone,
+          useContactOnFile: usingOnFile,
+          attendees: attendees.map((a) => ({
+            person: toRef(a.person),
+            ageGroup: a.ageGroup,
+            adultRate: a.ageGroup === 'adult' ? a.adultRate ?? 'full' : undefined,
+            activities: a.activities,
+          })),
+          dogs: draft.dogs,
           notes: draft.notes,
           website,
         }),
@@ -185,7 +285,12 @@ export default function RegisterSection() {
       }
       if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
 
-      setDone(data.attendees ?? attendees.map((a) => ({ displayName: a.person.displayName, activities: a.activities })));
+      setDone({
+        attendees: data.attendees ?? [],
+        lines: data.lines ?? [],
+        totalCents: data.totalCents ?? 0,
+        submitterName: draft.submitter.displayName,
+      });
       setStep('done');
       setRemovedNotice([]);
       try {
@@ -202,7 +307,7 @@ export default function RegisterSection() {
 
   const startOver = () => {
     setDraft(emptyDraft());
-    setDone([]);
+    setDone(null);
     setStep('form');
   };
 
@@ -225,19 +330,41 @@ export default function RegisterSection() {
             <p className="text-slate-700 mb-4">We couldn&apos;t load the sign-up form.</p>
             <Button onClick={load}>Try again</Button>
           </div>
-        ) : step === 'done' ? (
-          <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-lg text-center space-y-6">
-            <PartyPopper className="w-14 h-14 text-red-500 mx-auto" />
-            <h3 className="text-3xl font-bold text-slate-800">You&apos;re signed up! 🎉</h3>
-            <ul className="text-left space-y-3">
-              {done.map((a) => (
-                <li key={a.displayName} className="rounded-xl bg-slate-50 p-4">
+        ) : step === 'done' && done ? (
+          <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-lg space-y-6">
+            <div className="text-center space-y-2">
+              <PartyPopper className="w-14 h-14 text-red-500 mx-auto" />
+              <h3 className="text-3xl font-bold text-slate-800">You&apos;re signed up! 🎉</h3>
+            </div>
+            <ul className="space-y-2">
+              {done.attendees.map((a) => (
+                <li key={a.displayName} className="rounded-xl bg-slate-50 px-4 py-3">
                   <p className="font-semibold text-slate-800">{a.displayName}</p>
                   <p className="text-sm text-slate-600">{activityLabel(a.activities)}</p>
                 </li>
               ))}
             </ul>
-            <p className="text-slate-600">See you at the reunion!</p>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-slate-800">Your family&apos;s dues</h4>
+              <DuesSummary lines={done.lines} totalCents={done.totalCents} />
+            </div>
+            {done.totalCents > 0 ? (
+              <div className="text-center space-y-2">
+                <Button
+                  size="lg"
+                  className="w-full min-h-[56px] bg-[#008CFF] hover:bg-[#0074d4] text-white text-lg"
+                  onClick={() => window.open('https://venmo.com/churchwellreunion', '_blank')}
+                >
+                  Pay {formatDollars(done.totalCents)} via Venmo
+                </Button>
+                <p className="text-sm text-slate-500">
+                  Venmo @churchwellreunion. In the note, please write:{' '}
+                  <strong className="text-slate-700">CFR {REUNION_YEAR} – {done.submitterName}</strong>
+                </p>
+              </div>
+            ) : (
+              <p className="text-center text-slate-600">No dues for your group. See you at the reunion!</p>
+            )}
             <Button variant="outline" size="lg" className="w-full min-h-[52px]" onClick={startOver}>
               Sign up another family
             </Button>
@@ -262,20 +389,35 @@ export default function RegisterSection() {
             <h3 className="text-2xl font-bold text-slate-800">Look good?</h3>
             <div className="text-slate-600 text-sm">
               Signed up by <strong className="text-slate-800">{draft.submitter?.displayName}</strong>
-              {draft.email && <> · {draft.email}</>}
-              {draft.phone && <> · {draft.phone}</>}
+              {usingOnFile ? (
+                <>
+                  {onFile?.email && <> · {onFile.email}</>}
+                  {onFile?.phone && <> · {onFile.phone}</>}
+                </>
+              ) : (
+                <>
+                  {draft.email && <> · {draft.email}</>}
+                  {draft.phone && <> · {draft.phone}</>}
+                </>
+              )}
             </div>
             {attendees.length === 0 ? (
               <p className="text-slate-700">Everyone on this list is already signed up. There&apos;s nothing more to do!</p>
             ) : (
-              <ul className="space-y-3">
-                {attendees.map((a) => (
-                  <li key={selectedKey(a.person)} className="rounded-xl bg-slate-50 p-4">
-                    <p className="font-semibold text-slate-800">{a.person.displayName}</p>
-                    <p className="text-sm text-slate-600">{activityLabel(a.activities)}</p>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="space-y-3">
+                  {attendees.map((a) => (
+                    <li key={selectedKey(a.person)} className="rounded-xl bg-slate-50 p-4">
+                      <p className="font-semibold text-slate-800">{a.person.displayName}</p>
+                      <p className="text-sm text-slate-600">{activityLabel(a.activities)}</p>
+                    </li>
+                  ))}
+                </ul>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-slate-800">Dues</h4>
+                  <DuesSummary lines={reviewDues.lines} totalCents={reviewDues.totalCents} />
+                </div>
+              </>
             )}
             {draft.notes && <p className="text-sm text-slate-600 italic">&ldquo;{draft.notes}&rdquo;</p>}
             <div className="flex flex-col-reverse sm:flex-row gap-3">
@@ -343,35 +485,64 @@ export default function RegisterSection() {
                     placeholder="Start typing your name…"
                   />
                 </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="reg-email" className="block font-medium text-slate-700">Email</label>
-                    <input
-                      id="reg-email"
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      value={draft.email}
-                      onChange={(e) => update({ email: e.target.value })}
-                      placeholder="you@example.com"
-                      className={inputClass}
-                    />
+                {usingOnFile ? (
+                  <div className="rounded-xl bg-green-50 border border-green-200 p-4 space-y-2">
+                    <p className="font-medium text-green-800">✓ We have your contact info on file</p>
+                    <p className="text-sm text-green-900">
+                      {[onFile?.email, onFile?.phone].filter(Boolean).join(' · ')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setUseOnFile(false)}
+                      className="text-sm text-red-600 underline underline-offset-4 min-h-[32px]"
+                    >
+                      Use different contact info
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="reg-phone" className="block font-medium text-slate-700">Phone</label>
-                    <input
-                      id="reg-phone"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      value={draft.phone}
-                      onChange={(e) => update({ phone: formatPhoneInput(e.target.value) })}
-                      placeholder="(555) 555-5555"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-                <p className="text-sm text-slate-500">Email or phone, whichever is easier. We only use it to reach you about the reunion.</p>
+                ) : (
+                  <>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label htmlFor="reg-email" className="block font-medium text-slate-700">Email</label>
+                        <input
+                          id="reg-email"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          value={draft.email}
+                          onChange={(e) => update({ email: e.target.value })}
+                          placeholder="you@example.com"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="reg-phone" className="block font-medium text-slate-700">Phone</label>
+                        <input
+                          id="reg-phone"
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value={draft.phone}
+                          onChange={(e) => update({ phone: formatPhoneInput(e.target.value) })}
+                          placeholder="(555) 555-5555"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                    {onFile && (
+                      <button
+                        type="button"
+                        onClick={() => setUseOnFile(true)}
+                        className="text-sm text-slate-600 underline underline-offset-4"
+                      >
+                        Use the contact info we have on file instead
+                      </button>
+                    )}
+                  </>
+                )}
+                {!usingOnFile && (
+                  <p className="text-sm text-slate-500">Email or phone, whichever is easier. We only use it to reach you about the reunion.</p>
+                )}
               </fieldset>
 
               {/* Step 2 */}
@@ -401,18 +572,39 @@ export default function RegisterSection() {
                       </label>
                       {draft.attending && (
                         <>
-                          <p className="text-sm text-slate-600">What do you want to play?</p>
-                          <ActivityChips value={draft.selfActivities} onChange={(v) => update({ selfActivities: v })} />
-                          {draft.rows.some((r) => r.person) && (
-                            <button
-                              type="button"
-                              className="text-sm text-red-600 underline underline-offset-4"
-                              onClick={() =>
-                                setDraft((d) => ({ ...d, rows: d.rows.map((r) => ({ ...r, activities: [...d.selfActivities] })) }))
-                              }
-                            >
-                              Copy my picks to everyone
-                            </button>
+                          <p className="text-sm text-slate-600">Your age group</p>
+                          <AgeGroupPicker
+                            ageGroup={draft.selfAgeGroup}
+                            adultRate={draft.selfAdultRate}
+                            onChange={(g, rate) =>
+                              update({ selfAgeGroup: g, selfAdultRate: rate, selfActivities: withAge(draft.selfActivities, g) })
+                            }
+                          />
+                          {draft.selfAgeGroup && (
+                            <>
+                              <p className="text-sm text-slate-600">What do you want to play?</p>
+                              <ActivityChips
+                                value={draft.selfActivities}
+                                onChange={(v) => update({ selfActivities: v })}
+                                allowed={allowedActivities(draft.selfAgeGroup)}
+                              />
+                              {draft.rows.some((r) => r.person && r.ageGroup) && draft.selfActivities.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="text-sm text-red-600 underline underline-offset-4"
+                                  onClick={() =>
+                                    setDraft((d) => ({
+                                      ...d,
+                                      rows: d.rows.map((r) =>
+                                        r.ageGroup ? { ...r, activities: withAge(d.selfActivities, r.ageGroup) } : r
+                                      ),
+                                    }))
+                                  }
+                                >
+                                  Copy my picks to everyone
+                                </button>
+                              )}
+                            </>
                           )}
                         </>
                       )}
@@ -446,8 +638,24 @@ export default function RegisterSection() {
                     />
                     {row.person && (
                       <>
-                        <p className="text-sm text-slate-600">What do they want to play?</p>
-                        <ActivityChips value={row.activities} onChange={(v) => updateRow(row.key, { activities: v })} />
+                        <p className="text-sm text-slate-600">Age group</p>
+                        <AgeGroupPicker
+                          ageGroup={row.ageGroup}
+                          adultRate={row.adultRate}
+                          onChange={(g, rate) =>
+                            updateRow(row.key, { ageGroup: g, adultRate: rate, activities: withAge(row.activities, g) })
+                          }
+                        />
+                        {row.ageGroup && (
+                          <>
+                            <p className="text-sm text-slate-600">What do they want to play?</p>
+                            <ActivityChips
+                              value={row.activities}
+                              onChange={(v) => updateRow(row.key, { activities: v })}
+                              allowed={allowedActivities(row.ageGroup)}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -470,6 +678,37 @@ export default function RegisterSection() {
                   </p>
                 )}
               </fieldset>
+
+              {/* Dogs */}
+              <div className="flex items-center justify-between gap-4 rounded-xl border-2 border-slate-200 p-4">
+                <div>
+                  <p className="font-semibold text-slate-800">🐕 Bringing dogs?</p>
+                  <p className="text-sm text-slate-500">$5 per dog</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    aria-label="One less dog"
+                    disabled={draft.dogs <= 0}
+                    onClick={() => update({ dogs: Math.max(0, draft.dogs - 1) })}
+                    className="w-11 h-11 rounded-full border-2 border-slate-300 text-xl font-bold text-slate-700 disabled:opacity-30"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center text-xl font-bold text-slate-800" aria-live="polite">
+                    {draft.dogs}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="One more dog"
+                    disabled={draft.dogs >= MAX_DOGS}
+                    onClick={() => update({ dogs: Math.min(MAX_DOGS, draft.dogs + 1) })}
+                    className="w-11 h-11 rounded-full border-2 border-slate-300 text-xl font-bold text-slate-700 disabled:opacity-30"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
               {/* Notes */}
               <div className="space-y-2">

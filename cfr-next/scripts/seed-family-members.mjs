@@ -10,6 +10,10 @@
  *   --signup <path>   Past sign-up CSV with givenName,familyName columns
  *                     (default: data/2025_Reunion_Sign-Up_2025-07-05_22_46_52.csv, falling back to public/)
  *
+ *   --skip-cognito    Don't read names/contacts from the site's Cognito accounts
+ *
+ * Contact info (email/phone) is attached server-side only, from the sign-up CSV and Cognito
+ * (Cognito wins, it's newer). It is never returned by public endpoints.
  * IDs are deterministic (ft_<FamilyEchoID>, su_<name-slug>) so re-running is safe.
  * Existing items are overwritten, but `verified` and `createdAt` are kept when present.
  */
@@ -17,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, BatchWriteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { CognitoIdentityProviderClient, ListUsersCommand } from '@aws-sdk/client-cognito-identity-provider';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -27,6 +32,8 @@ const opt = (name, def) => {
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const DRY = flag('--dry-run');
+const SKIP_COGNITO = flag('--skip-cognito');
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'us-east-1_o0wJlnxyH';
 const TABLE = process.env.FAMILY_MEMBERS_TABLE || 'FamilyMembers';
 const TREE = path.resolve(ROOT, opt('--tree', 'public/FamilyTree.html'));
 const SIGNUP_NAME = '2025_Reunion_Sign-Up_2025-07-05_22_46_52.csv';
@@ -160,7 +167,20 @@ for (const it of items) {
   delete it._gender;
 }
 
-// ---- 2. Past sign-up CSV (names only, contact info is NOT copied) ----
+const contacts = new Map(); // nameKey -> { email?, phone? }
+const normPhone = (p) => {
+  const d = String(p ?? '').replace(/\D/g, '');
+  if (d.length === 10) return `+1${d}`;
+  if (d.length === 11 && d.startsWith('1')) return `+${d}`;
+  return undefined;
+};
+const normEmail = (e) => (/^\S+@\S+\.\S+$/.test(String(e ?? '').trim()) ? String(e).trim().toLowerCase() : undefined);
+const addContact = (key, email, phone) => {
+  const prev = contacts.get(key) ?? {};
+  contacts.set(key, { email: email ?? prev.email, phone: phone ?? prev.phone });
+};
+
+// ---- 2. Past sign-up CSV ----
 let signupAdded = [];
 if (fs.existsSync(SIGNUP)) {
   const rows = toObjects(parseCsv(fs.readFileSync(SIGNUP, 'utf8')));
@@ -172,6 +192,7 @@ if (fs.existsSync(SIGNUP)) {
       continue;
     }
     const key = nameKey(given, family);
+    addContact(key, normEmail(r.email), normPhone(r.phoneNumber));
     if (byKey.has(key)) continue;
     const item = {
       personId: `su_${slug(key)}`,
@@ -191,13 +212,64 @@ if (fs.existsSync(SIGNUP)) {
   console.warn(`  ! sign-up CSV not found at ${SIGNUP}, skipping`);
 }
 
+// ---- 3. Cognito accounts (site sign-ins): newest contact info, plus names not listed yet ----
+const accountAdded = [];
+if (!SKIP_COGNITO) {
+  const cog = new CognitoIdentityProviderClient({ region: 'us-east-1' });
+  let PaginationToken;
+  do {
+    const out = await cog.send(new ListUsersCommand({ UserPoolId: USER_POOL_ID, PaginationToken }));
+    for (const u of out.Users ?? []) {
+      const a = Object.fromEntries((u.Attributes ?? []).map((x) => [x.Name, x.Value]));
+      const given = fixCase(clean(a.given_name));
+      const family = fixCase(clean(a.family_name));
+      if (!given || !looksLikeName(given) || (family && !looksLikeName(family))) continue;
+      if (/^test$/i.test(given) || /^test$/i.test(family)) continue; // test accounts
+      // "Lee Ann Enns" and "LeeAnn Enns" are the same person.
+      const compact = nameKey(given, family).replace(/ /g, '');
+      const match = [...byKey.values()].find((it) => it.nameKey.replace(/ /g, '') === compact);
+      const key = match ? match.nameKey : nameKey(given, family);
+      addContact(key, normEmail(a.email), normPhone(a.phone_number));
+      if (byKey.has(key)) continue;
+      const item = {
+        personId: `ac_${slug(key)}`,
+        givenName: given,
+        familyName: family,
+        displayName: `${given} ${family}`.trim(),
+        nameKey: key,
+        source: 'account',
+        verified: true,
+        createdAt: now,
+      };
+      byKey.set(key, item);
+      items.push(item);
+      accountAdded.push(item.displayName);
+    }
+    PaginationToken = out.PaginationToken;
+  } while (PaginationToken);
+}
+
+// Attach contacts only where the name is unambiguous (not e.g. the two Darrell Churchwells).
+const keyCounts = new Map();
+for (const it of items) keyCounts.set(it.nameKey, (keyCounts.get(it.nameKey) ?? 0) + 1);
+let withContact = 0;
+for (const it of items) {
+  const c = contacts.get(it.nameKey);
+  if (!c || keyCounts.get(it.nameKey) > 1 || it.deceased) continue;
+  if (c.email) it.email = c.email;
+  if (c.phone) it.phone = c.phone;
+  if (c.email || c.phone) withContact++;
+}
+
 console.log(`Family tree: ${treeCount} people (${items.filter((i) => i.deceased).length} deceased, hidden from autocomplete), ${skippedBlank} blank rows skipped`);
 console.log(`2025 sign-up: ${signupAdded.length} names not in the tree${signupAdded.length ? ':\n    ' + signupAdded.join(', ') : ''}`);
+console.log(`Site accounts: ${accountAdded.length} names not listed yet${accountAdded.length ? ':\n    ' + accountAdded.join(', ') : ''}`);
+console.log(`Contact info on file for ${withContact} people`);
 console.log(`Total: ${items.length} → table ${TABLE}`);
 
 if (DRY) {
   console.log('\n--dry-run: nothing written. Sample:');
-  console.log(items.slice(0, 5));
+  console.log(items.slice(0, 3).map(({ email, phone, ...rest }) => ({ ...rest, hasEmail: !!email, hasPhone: !!phone })));
   process.exit(0);
 }
 
@@ -219,6 +291,9 @@ for (const it of items) {
   if (prev) {
     it.createdAt = prev.createdAt ?? it.createdAt;
     if (typeof prev.verified === 'boolean') it.verified = prev.verified;
+    // Keep contact info people gave at sign-up when the sources have none.
+    if (!it.email && prev.email) it.email = prev.email;
+    if (!it.phone && prev.phone) it.phone = prev.phone;
   }
 }
 

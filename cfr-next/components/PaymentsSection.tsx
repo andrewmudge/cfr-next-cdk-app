@@ -3,51 +3,20 @@
 // ...existing code...
 import { DollarSign, Shirt, CreditCard, Users, Baby, Clock, Crown, Dog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ADULT_RATES, AGE_GROUPS, DOG_DUES_CENTS } from '@/lib/reunion-config';
 
 const PaymentsSection = () => {
+  // Prices come from lib/reunion-config.ts so this list always matches what the sign-up form charges.
+  const age = (id: string) => AGE_GROUPS.find((g) => g.id === id)!;
+  const rate = (id: string) => ADULT_RATES.find((r) => r.id === id)!;
   const duesStructure = [
-    {
-      category: 'Adult (18-79)',
-      price: 125,
-      description: 'Full weekend access & meals',
-      icon: Users,
-      color: 'from-blue-500 to-blue-700',
-    },
-    {
-      category: 'Child (10-17)',
-      price: 50,
-      description: 'Kids activities & meals',
-      icon: Baby,
-      color: 'from-green-500 to-green-700',
-    },
-    {
-      category: 'Dog',
-      price: 5,
-      description: "No seriously...we're being charged for dogs now",
-      icon: Dog,
-      color: 'from-amber-500 to-amber-700',
-    },
-    {
-      category: 'Day Visitor',
-      price: 75,
-      description: 'Single day attendance',
-      icon: Clock,
-      color: 'from-orange-500 to-orange-700',
-    },
-    {
-      category: 'Senior (80+)',
-      price: 0,
-      description: 'Free with our gratitude',
-      icon: Crown,
-      color: 'from-purple-500 to-purple-700',
-    },
-    {
-      category: 'Grandfather Rate',
-      price: 50,
-      description: 'Special legacy pricing',
-      icon: Crown,
-      color: 'from-indigo-500 to-indigo-700',
-    },
+    { category: age('adult').label, price: rate('full').duesCents / 100, description: 'Full weekend access & meals', icon: Users, color: 'from-blue-500 to-blue-700' },
+    { category: age('child_10_17').label, price: age('child_10_17').duesCents / 100, description: 'Kids activities & meals', icon: Baby, color: 'from-green-500 to-green-700' },
+    { category: age('child_0_9').label, price: age('child_0_9').duesCents / 100, description: 'Little ones are on us', icon: Baby, color: 'from-teal-500 to-teal-700' },
+    { category: age('senior').label, price: age('senior').duesCents / 100, description: 'Free with our gratitude', icon: Crown, color: 'from-purple-500 to-purple-700' },
+    { category: rate('day').label, price: rate('day').duesCents / 100, description: 'Single day attendance (adults)', icon: Clock, color: 'from-orange-500 to-orange-700' },
+    { category: rate('grandfather').label, price: rate('grandfather').duesCents / 100, description: 'Special legacy pricing', icon: Crown, color: 'from-indigo-500 to-indigo-700' },
+    { category: 'Dog', price: DOG_DUES_CENTS / 100, description: "No seriously...we're being charged for dogs now", icon: Dog, color: 'from-amber-500 to-amber-700' },
   ];
 
   return (
@@ -101,6 +70,11 @@ const PaymentsSection = () => {
                   );
                 })}
               </div>
+
+              <p className="mt-6 text-center text-slate-600">
+                <a href="#register" className="text-red-600 font-medium underline underline-offset-4">Sign up</a>{' '}
+                and we&apos;ll total your family&apos;s dues for you.
+              </p>
 
               {/* Payment Button */}
               <div className="mt-8 text-center">

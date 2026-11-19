@@ -195,12 +195,8 @@ export default function PersonCombobox({
               );
             }
             const reg = registered.get(opt.person.id);
-            const subtitle = [
-              opt.person.nickname && `“${opt.person.nickname}”`,
-              opt.person.birthSurname && `née ${opt.person.birthSurname}`,
-            ]
-              .filter(Boolean)
-              .join(' · ');
+            // Maiden names still match when typed, but aren't shown.
+            const subtitle = opt.person.nickname ? `“${opt.person.nickname}”` : '';
             return (
               <li
                 key={opt.person.id}

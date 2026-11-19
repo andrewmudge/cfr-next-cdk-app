@@ -16,6 +16,79 @@ export const ACTIVITY_IDS = ACTIVITIES.map((a) => a.id) as [ActivityId, ...Activ
 
 export const MAX_ATTENDEES = 25;
 
+// ---------- Age groups & dues (amounts in cents, as Stripe expects) ----------
+
+export const AGE_GROUPS = [
+  { id: 'child_0_9', label: 'Child (0–9)', short: 'Child 0–9', duesCents: 0, games: 'none' },
+  { id: 'child_10_17', label: 'Child (10–17)', short: 'Child 10–17', duesCents: 5000, games: 'no_poker' },
+  { id: 'adult', label: 'Adult (18–79)', short: 'Adult', duesCents: 12500, games: 'all' },
+  { id: 'senior', label: 'Senior (80+)', short: 'Senior', duesCents: 0, games: 'all' },
+] as const;
+export type AgeGroupId = (typeof AGE_GROUPS)[number]['id'];
+export const AGE_GROUP_IDS = AGE_GROUPS.map((a) => a.id) as [AgeGroupId, ...AgeGroupId[]];
+
+/** Rate options that only apply to the adult age group. */
+export const ADULT_RATES = [
+  { id: 'full', label: 'Full weekend', duesCents: 12500 },
+  { id: 'day', label: 'Day visitor', duesCents: 7500 },
+  { id: 'grandfather', label: 'Grandfather rate', duesCents: 5000 },
+] as const;
+export type AdultRateId = (typeof ADULT_RATES)[number]['id'];
+export const ADULT_RATE_IDS = ADULT_RATES.map((r) => r.id) as [AdultRateId, ...AdultRateId[]];
+
+export const DOG_DUES_CENTS = 500;
+export const MAX_DOGS = 10;
+
+export const ageGroupById = (id?: string) => AGE_GROUPS.find((a) => a.id === id);
+
+/** Games each age group may sign up for: 0–9 none, 10–17 everything but poker, 18+ all. */
+export function allowedActivities(ageGroup?: AgeGroupId): ActivityId[] {
+  const g = ageGroupById(ageGroup);
+  if (!g || g.games === 'none') return [];
+  if (g.games === 'no_poker') return ACTIVITY_IDS.filter((a) => a !== 'poker');
+  return [...ACTIVITY_IDS];
+}
+
+export function personDuesCents(ageGroup: AgeGroupId, adultRate?: AdultRateId): number {
+  if (ageGroup === 'adult') {
+    return (ADULT_RATES.find((r) => r.id === (adultRate ?? 'full')) ?? ADULT_RATES[0]).duesCents;
+  }
+  return ageGroupById(ageGroup)?.duesCents ?? 0;
+}
+
+export function rateLabel(ageGroup?: AgeGroupId, adultRate?: AdultRateId): string {
+  const g = ageGroupById(ageGroup);
+  if (!g) return '—';
+  if (ageGroup === 'adult' && adultRate && adultRate !== 'full') {
+    return `Adult · ${ADULT_RATES.find((r) => r.id === adultRate)?.label}`;
+  }
+  return g.short;
+}
+
+export interface DuesLine {
+  label: string;
+  detail: string;
+  cents: number;
+}
+
+export function familyDues(
+  attendees: { displayName: string; ageGroup: AgeGroupId; adultRate?: AdultRateId }[],
+  dogs: number
+): { lines: DuesLine[]; totalCents: number } {
+  const lines: DuesLine[] = attendees.map((a) => ({
+    label: a.displayName,
+    detail: rateLabel(a.ageGroup, a.adultRate),
+    cents: personDuesCents(a.ageGroup, a.adultRate),
+  }));
+  if (dogs > 0) {
+    lines.push({ label: `🐕 ${dogs} ${dogs === 1 ? 'dog' : 'dogs'}`, detail: `$${DOG_DUES_CENTS / 100} each`, cents: dogs * DOG_DUES_CENTS });
+  }
+  return { lines, totalCents: lines.reduce((s, l) => s + l.cents, 0) };
+}
+
+export const formatDollars = (cents: number) =>
+  cents === 0 ? 'FREE' : `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
+
 /** Public, contact-free view of a family member (what the autocomplete gets). */
 export interface PublicPerson {
   id: string;

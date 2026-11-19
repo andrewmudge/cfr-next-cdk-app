@@ -6,15 +6,22 @@ import {
   QueryCommand,
   TransactWriteCommand,
   BatchGetCommand,
+  GetCommand,
   UpdateCommand,
   type ScanCommandOutput,
   type QueryCommandOutput,
 } from '@aws-sdk/lib-dynamodb';
 import {
+  allowedActivities,
+  familyDues,
   nameKey,
   normalizeName,
+  personDuesCents,
   titleCase,
   type ActivityId,
+  type AdultRateId,
+  type AgeGroupId,
+  type DuesLine,
   type PublicPerson,
   type RegisteredPerson,
 } from '@/lib/reunion-config';
@@ -35,8 +42,11 @@ export interface FamilyMemberRecord {
   birthSurname?: string;
   displayName: string;
   nameKey: string;
-  source: 'familytree' | 'signup2025' | 'registration';
+  source: 'familytree' | 'signup2025' | 'account' | 'registration';
   verified: boolean;
+  /** Server-only. Never returned by public endpoints (see listPublicPeople / getContactHint). */
+  email?: string;
+  phone?: string; // E.164, e.g. +16615551234
   deceased?: boolean;
   createdAt: string;
 }
@@ -50,9 +60,22 @@ export interface SubmissionRecord {
   email?: string;
   phone?: string;
   attendeeIds: string[];
-  attendees: { personId: string; displayName: string; activities: ActivityId[] }[];
+  attendees: RegisteredAttendee[];
+  dogs?: number;
+  duesTotalCents?: number;
+  /** Phase 2 (Stripe) will move this to 'paid'. */
+  paymentStatus?: 'unpaid' | 'paid';
   notes?: string;
   createdAt: string;
+}
+
+export interface RegisteredAttendee {
+  personId: string;
+  displayName: string;
+  activities: ActivityId[];
+  ageGroup?: AgeGroupId; // missing on sign-ups made before age groups existed
+  adultRate?: AdultRateId;
+  duesCents?: number;
 }
 
 // ---------- Family members (cached) ----------
@@ -91,6 +114,19 @@ export async function listPublicPeople(): Promise<PublicPerson[]> {
       birthSurname: m.birthSurname && m.birthSurname !== m.familyName ? m.birthSurname : undefined,
     }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+const maskEmail = (e: string) => {
+  const [user, domain] = e.split('@');
+  return `${user.slice(0, 1)}•••@${domain}`;
+};
+const maskPhone = (p: string) => `(•••) •••-${p.replace(/\D/g, '').slice(-4)}`;
+
+/** Masked contact info for a person, so the public form can say "we have this on file". */
+export async function getContactHint(personId: string): Promise<{ email?: string; phone?: string } | null> {
+  const m = (await listFamilyMemberRecords()).find((x) => x.personId === personId);
+  if (!m || (!m.email && !m.phone)) return null;
+  return { email: m.email ? maskEmail(m.email) : undefined, phone: m.phone ? maskPhone(m.phone) : undefined };
 }
 
 export async function setMemberVerified(personId: string, verified: boolean) {
@@ -166,12 +202,15 @@ export interface RegistrationInput {
   submitter: PersonRef;
   email?: string;
   phone?: string;
-  attendees: { person: PersonRef; activities: ActivityId[] }[];
+  /** Use the submitter's email/phone on file instead of email/phone above. */
+  useContactOnFile?: boolean;
+  attendees: { person: PersonRef; ageGroup: AgeGroupId; adultRate?: AdultRateId; activities: ActivityId[] }[];
+  dogs: number;
   notes?: string;
 }
 
 export type RegistrationResult =
-  | { ok: true; submissionId: string; attendees: { personId: string; displayName: string; activities: ActivityId[] }[] }
+  | { ok: true; submissionId: string; attendees: RegisteredAttendee[]; lines: DuesLine[]; totalCents: number }
   | { ok: false; reason: 'already_registered'; alreadyRegistered: RegisteredPerson[] }
   | { ok: false; reason: 'invalid'; message: string };
 
@@ -220,7 +259,29 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
   const submitter = resolvePerson(input.submitter, byId, byKey, pendingNew, now);
   if (!submitter) return { ok: false, reason: 'invalid', message: 'We could not find your name. Please pick it again.' };
 
-  const attendees: { member: FamilyMemberRecord; activities: ActivityId[] }[] = [];
+  // Contact: either what they typed, or what we already have on file for them.
+  let email = input.email || undefined;
+  let phone = input.phone || undefined;
+  if (input.useContactOnFile && !email && !phone) {
+    email = submitter.email;
+    phone = submitter.phone;
+  }
+  if (!email && !phone) {
+    return { ok: false, reason: 'invalid', message: 'Please add an email or phone number so we can reach you.' };
+  }
+  // Remember newly typed contact info on the submitter's record for next time.
+  const contactChanged = !input.useContactOnFile && (email !== submitter.email || phone !== submitter.phone);
+  if (contactChanged && pendingNew.has(submitter.nameKey)) {
+    submitter.email = email ?? submitter.email;
+    submitter.phone = phone ?? submitter.phone;
+  }
+
+  const attendees: {
+    member: FamilyMemberRecord;
+    ageGroup: AgeGroupId;
+    adultRate?: AdultRateId;
+    activities: ActivityId[];
+  }[] = [];
   const seen = new Set<string>();
   for (const a of input.attendees) {
     const member = resolvePerson(a.person, byId, byKey, pendingNew, now);
@@ -229,7 +290,14 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
       return { ok: false, reason: 'invalid', message: `${member.displayName} is listed twice.` };
     }
     seen.add(member.personId);
-    attendees.push({ member, activities: Array.from(new Set(a.activities)) });
+    // Enforce game eligibility server-side (0–9: none, 10–17: no poker).
+    const allowed = allowedActivities(a.ageGroup);
+    attendees.push({
+      member,
+      ageGroup: a.ageGroup,
+      adultRate: a.ageGroup === 'adult' ? a.adultRate ?? 'full' : undefined,
+      activities: Array.from(new Set(a.activities)).filter((x) => allowed.includes(x)),
+    });
   }
 
   // Pre-check so we can report all conflicts at once (the transaction conditions
@@ -238,11 +306,18 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
   if (conflicts.length) return { ok: false, reason: 'already_registered', alreadyRegistered: conflicts };
 
   const submissionId = randomUUID();
-  const attendeeSummary = attendees.map((a) => ({
+  const attendeeSummary: RegisteredAttendee[] = attendees.map((a) => ({
     personId: a.member.personId,
     displayName: a.member.displayName,
     activities: a.activities,
+    ageGroup: a.ageGroup,
+    adultRate: a.adultRate,
+    duesCents: personDuesCents(a.ageGroup, a.adultRate),
   }));
+  const dues = familyDues(
+    attendees.map((a) => ({ displayName: a.member.displayName, ageGroup: a.ageGroup, adultRate: a.adultRate })),
+    input.dogs
+  );
 
   const personItems = attendees.map((a) => ({
     Put: {
@@ -253,6 +328,8 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
         personId: a.member.personId,
         displayName: a.member.displayName,
         activities: a.activities,
+        ageGroup: a.ageGroup,
+        adultRate: a.adultRate,
         submissionId,
         submittedByName: submitter.displayName,
         createdAt: now,
@@ -267,17 +344,34 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
     submissionId,
     submitterPersonId: submitter.personId,
     submitterName: submitter.displayName,
-    email: input.email || undefined,
-    phone: input.phone || undefined,
+    email,
+    phone,
     attendeeIds: attendeeSummary.map((a) => a.personId),
     attendees: attendeeSummary,
+    dogs: input.dogs,
+    duesTotalCents: dues.totalCents,
+    paymentStatus: 'unpaid',
     notes: input.notes || undefined,
     createdAt: now,
   };
 
-  const memberItems = Array.from(pendingNew.values()).map((m) => ({
+  const memberItems: Record<string, unknown>[] = Array.from(pendingNew.values()).map((m) => ({
     Put: { TableName: MEMBERS_TABLE, Item: m },
   }));
+  if (contactChanged && !pendingNew.has(submitter.nameKey)) {
+    const sets: string[] = [];
+    const vals: Record<string, string> = {};
+    if (email) (sets.push('email = :e'), (vals[':e'] = email));
+    if (phone) (sets.push('phone = :p'), (vals[':p'] = phone));
+    memberItems.push({
+      Update: {
+        TableName: MEMBERS_TABLE,
+        Key: { personId: submitter.personId },
+        UpdateExpression: `SET ${sets.join(', ')}`,
+        ExpressionAttributeValues: vals,
+      },
+    });
+  }
 
   try {
     await docClient.send(
@@ -294,8 +388,8 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
     throw err;
   }
 
-  if (pendingNew.size) membersCache = null;
-  return { ok: true, submissionId, attendees: attendeeSummary };
+  if (pendingNew.size || contactChanged) membersCache = null;
+  return { ok: true, submissionId, attendees: attendeeSummary, lines: dues.lines, totalCents: dues.totalCents };
 }
 
 async function findRegistered(year: string, personIds: string[]): Promise<RegisteredPerson[]> {
@@ -317,4 +411,90 @@ async function findRegistered(year: string, personIds: string[]): Promise<Regist
     }
   }
   return found;
+}
+
+// ---------- Admin: delete ----------
+
+async function getSubmission(year: string, submissionId: string): Promise<SubmissionRecord | null> {
+  const out = await docClient.send(
+    new GetCommand({ TableName: REG_TABLE, Key: { year, sk: `SUBMISSION#${submissionId}` } })
+  );
+  return (out.Item as SubmissionRecord) ?? null;
+}
+
+/** Only delete a person's row if it still belongs to this submission. */
+const deletePersonOp = (year: string, personId: string, submissionId: string) => ({
+  Delete: {
+    TableName: REG_TABLE,
+    Key: { year, sk: `PERSON#${personId}` },
+    ConditionExpression: 'attribute_not_exists(sk) OR submissionId = :sid',
+    ExpressionAttributeValues: { ':sid': submissionId },
+  },
+});
+
+/** Delete a whole family sign-up. Everyone on it can sign up again afterwards. */
+export async function deleteSubmission(year: string, submissionId: string): Promise<boolean> {
+  const sub = await getSubmission(year, submissionId);
+  if (!sub) return false;
+  await docClient.send(
+    new TransactWriteCommand({
+      TransactItems: [
+        { Delete: { TableName: REG_TABLE, Key: { year, sk: `SUBMISSION#${submissionId}` } } },
+        ...sub.attendeeIds.map((id) => deletePersonOp(year, id, submissionId)),
+      ],
+    })
+  );
+  return true;
+}
+
+/**
+ * Remove one person from a family sign-up and recalculate the family's dues.
+ * Removing the last person deletes the whole sign-up.
+ */
+export async function removeAttendee(
+  year: string,
+  submissionId: string,
+  personId: string
+): Promise<'removed' | 'deleted_submission' | 'not_found'> {
+  const sub = await getSubmission(year, submissionId);
+  if (!sub || !sub.attendeeIds.includes(personId)) return 'not_found';
+
+  const remaining = sub.attendees.filter((a) => a.personId !== personId);
+  if (remaining.length === 0) {
+    await deleteSubmission(year, submissionId);
+    return 'deleted_submission';
+  }
+
+  // Older sign-ups have no age groups; only recalculate when everyone left has one.
+  const total = remaining.every((a) => a.ageGroup)
+    ? familyDues(
+        remaining.map((a) => ({ displayName: a.displayName, ageGroup: a.ageGroup!, adultRate: a.adultRate })),
+        sub.dogs ?? 0
+      ).totalCents
+    : sub.duesTotalCents;
+
+  await docClient.send(
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: REG_TABLE,
+            Key: { year, sk: `SUBMISSION#${submissionId}` },
+            UpdateExpression: total === undefined
+              ? 'SET attendees = :a, attendeeIds = :ids'
+              : 'SET attendees = :a, attendeeIds = :ids, duesTotalCents = :t',
+            ConditionExpression: 'contains(attendeeIds, :pid)',
+            ExpressionAttributeValues: {
+              ':a': remaining,
+              ':ids': remaining.map((a) => a.personId),
+              ':pid': personId,
+              ...(total === undefined ? {} : { ':t': total }),
+            },
+          },
+        },
+        deletePersonOp(year, personId, submissionId),
+      ],
+    })
+  );
+  return 'removed';
 }
