@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Shield, Users, BarChart3, Settings, LogOut, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -158,7 +159,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
               {/* The tree is edited in place: tap anyone on the tree while signed in as admin. */}
-              <a href="/#family-tree-preview">Edit Family Tree</a>
+              <Link href="/#family-tree-preview">Edit Family Tree</Link>
             </Button>
             <Button
               onClick={() => setShowUserEditor(!showUserEditor)}
