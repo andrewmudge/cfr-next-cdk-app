@@ -38,7 +38,10 @@ export interface TreeLayout {
 
 interface Unit {
   person: string;
+  /** All partners shown with this person. */
   partners: string[];
+  /** Left-to-right card order, e.g. [friend, person, spouse]. */
+  order: string[];
   children: Unit[];
 }
 
@@ -72,17 +75,30 @@ export function layoutTree(g: FamilyGraph, focusId: string): TreeLayout {
   const anchor = focusParents[0] ?? focusId;
   const anchorOther = focusParents[1];
 
+  const sharedKids = (a: string, b: string) => g.childrenOf(a).filter((k) => g.parentsOf(k).includes(b)).length;
+
   const placed = new Set<string>();
   const build = (person: string, preferPartner?: string): Unit => {
     placed.add(person);
-    let partners = g.partnersOf(person).filter((p) => !placed.has(p));
+    const partners = g.partnersOf(person).filter((p) => !placed.has(p));
     if (preferPartner && !partners.includes(preferPartner) && !placed.has(preferPartner)) partners.unshift(preferPartner);
-    if (preferPartner) partners = [preferPartner, ...partners.filter((p) => p !== preferPartner)];
     partners.forEach((p) => placed.add(p));
+
+    // The spouse sits directly to the right: the partner they have children with (so the
+    // children's line starts between them), otherwise their current partner. Anyone else
+    // linked as a partner (friends, former partners) goes on the other side.
+    const coParents = partners.filter((p) => sharedKids(person, p) > 0).sort((a, b) => sharedKids(person, b) - sharedKids(person, a));
+    const current = partners.find((p) => g.isCurrentPartner(person, p));
+    const spouse = preferPartner ?? coParents[0] ?? current ?? partners[0];
+    const rank = (p: string) => (p === current ? 0 : coParents.includes(p) ? 1 : 2);
+    const others = partners.filter((p) => p !== spouse).sort((a, b) => rank(a) - rank(b)); // nearest first
+    const order = [...[...others].reverse(), person, ...(spouse ? [spouse] : [])];
+
     const kids = g.childrenOf(person).filter((k) => !placed.has(k));
     return {
       person,
       partners,
+      order,
       children: kids.map((k) => build(k)),
     };
   };
@@ -105,21 +121,22 @@ export function layoutTree(g: FamilyGraph, focusId: string): TreeLayout {
     const w = unitWidth(u);
     const left = node.x - w / 2;
     const y = unitTop + node.y;
-    [u.person, ...u.partners].forEach((id, i) => {
+    u.order.forEach((id, i) => {
       const x = left + i * (CARD_W + PARTNER_GAP);
       cards.push({
         id,
         x,
         y,
-        asPartner: i > 0,
+        asPartner: id !== u.person,
       });
       cardCenter.set(id, { cx: x + CARD_W / 2, top: y });
       if (i > 0) {
+        // Dashed link between neighbouring cards in the group.
         raw.push({
-          key: `couple-${u.person}-${id}`,
+          key: `couple-${u.order[i - 1]}-${id}`,
           pts: [x - PARTNER_GAP, y + CARD_H / 2, x, y + CARD_H / 2],
           childId: id,
-          parentIds: [u.person],
+          parentIds: [u.order[i - 1]],
           couple: true,
         });
       }
