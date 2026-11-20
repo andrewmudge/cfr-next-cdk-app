@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Archive, ArchiveRestore, FileUp, Loader2, Mail, Paperclip, RefreshCw, Send, Trash2, Upload, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { compressImageIfNeeded } from '@/lib/image-compress';
 
 // ---------- Types (mirror lib/messaging/*) ----------
 
@@ -54,6 +55,19 @@ const ACCEPT: Record<string, string[]> = {
 };
 const MAX_TOTAL = 25 * 1024 * 1024;
 const MAX_FILES = 10;
+// Big images are a spam signal (and slow on phones): shrink photos/screenshots before upload.
+const EMAIL_IMAGE_MAX_BYTES = 1024 * 1024;
+const EMAIL_IMAGE_MAX_DIMENSION = 1600;
+
+/** Shrink JPEG/PNG/WebP attachments; leave everything else (PDF, Word, GIF, HEIC) as is. */
+async function shrinkForEmail(file: File): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    return await compressImageIfNeeded(file, { maxBytes: EMAIL_IMAGE_MAX_BYTES, maxDimension: EMAIL_IMAGE_MAX_DIMENSION });
+  } catch {
+    return file; // browser couldn't decode it; send the original
+  }
+}
 
 const inputCls = 'w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-white placeholder:text-slate-500';
 const outlineBtn = 'border-slate-500 text-slate-200 hover:bg-slate-700 bg-transparent';
@@ -155,8 +169,9 @@ function Compose({ subscribed, onSent }: { subscribed: Member[]; onSent: () => v
   const uploading = uploads.some((u) => u.status === 'uploading');
 
   const onDrop = useCallback(
-    async (files: File[]) => {
-      if (!files.length) return;
+    async (dropped: File[]) => {
+      if (!dropped.length) return;
+      const files = await Promise.all(dropped.map(shrinkForEmail));
       if (uploads.length + files.length > MAX_FILES) return toast.error(`Attach at most ${MAX_FILES} files.`);
       if (totalSize + files.reduce((n, f) => n + f.size, 0) > MAX_TOTAL) return toast.error('Attachments are limited to 25 MB total.');
       const fresh: Upload[] = files.map((file) => ({ file, status: 'uploading' }));

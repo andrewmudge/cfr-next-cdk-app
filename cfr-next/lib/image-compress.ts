@@ -5,14 +5,17 @@ const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4MB, with margin under Vercel's 4.5
 const MAX_DIMENSION = 2400; // longest edge, px
 const MIN_QUALITY = 0.5;
 
-export async function compressImageIfNeeded(file: File): Promise<File> {
+export async function compressImageIfNeeded(
+  file: File,
+  { maxBytes = MAX_UPLOAD_BYTES, maxDimension = MAX_DIMENSION }: { maxBytes?: number; maxDimension?: number } = {}
+): Promise<File> {
   // Animated GIFs would lose their animation if redrawn to canvas; leave them alone.
-  if (file.type === 'image/gif' || file.size <= MAX_UPLOAD_BYTES) {
+  if (file.type === 'image/gif' || file.size <= maxBytes) {
     return file;
   }
 
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
   const width = Math.round(bitmap.width * scale);
   const height = Math.round(bitmap.height * scale);
 
@@ -21,17 +24,20 @@ export async function compressImageIfNeeded(file: File): Promise<File> {
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return file;
+  // JPEG has no transparency: paint white first so transparent PNG areas don't turn black.
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
   let quality = 0.85;
   let blob = await canvasToBlob(canvas, quality);
-  while (blob && blob.size > MAX_UPLOAD_BYTES && quality > MIN_QUALITY) {
+  while (blob && blob.size > maxBytes && quality > MIN_QUALITY) {
     quality -= 0.1;
     blob = await canvasToBlob(canvas, quality);
   }
 
-  if (!blob) return file;
+  if (!blob || blob.size >= file.size) return file;
 
   const compressedName = file.name.replace(/\.[^/.]+$/, '') + '.jpg';
   return new File([blob], compressedName, { type: 'image/jpeg' });

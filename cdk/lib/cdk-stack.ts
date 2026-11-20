@@ -118,6 +118,9 @@ export class CfrNextStack extends Stack {
     const emailConfigSet = new ses.ConfigurationSet(this, 'EmailConfigSet', {
       configurationSetName: 'cfr-email',
       suppressionReasons: ses.SuppressionReasons.BOUNCES_AND_COMPLAINTS,
+      // VDM engagement tracking is on at the account level; it rewrites links through
+      // awstrack.me and adds a tracking pixel, which hurts deliverability for a new domain.
+      vdmOptions: { engagementMetrics: false },
     });
     const defaultBus = events.EventBus.fromEventBusName(this, 'DefaultEventBus', 'default');
     emailConfigSet.addEventDestination('BouncesAndComplaints', {
