@@ -38,7 +38,7 @@ CFR Next is a cloud-native application that powers private family content access
 - 🛂 **Email-based Access Control** (via DynamoDB whitelist)
 - 📸 **Photo Upload and Browsing** (S3 + Lambda)
 - 📤 **Admin Tools for User Management** (Lambda)
-- 📬 **Welcome Emails via SES** (Lambda)
+- 📬 **Family email via SES**: master mailing list, admin compose with attachments, sign-up confirmations and announcements (Lambda)
 - 🏗️ **Infrastructure as Code (CDK)**
 
 ---
@@ -70,7 +70,7 @@ Directory Structure:
 | **Lambda**  | Business logic: upload photos, delete photos, tigger ses, list users, etc. |
 | **DynamoDB**| Stores list of approved user emails |
 | **S3**      | Stores user-uploaded images |
-| **SES**     | Sends welcome and notification emails |
+| **SES**     | Family-wide emails, sign-up confirmations and announcements (see [Email](#-email-ses)) |
 
 ---
 
@@ -94,6 +94,39 @@ NEXT_PUBLIC_COGNITO_CLIENT_ID=...
 COGNITO_ADMIN_URL=https://your-lambda-url.amazonaws.com/dev/auth
 S3_PHOTO_BUCKET=your-photo-bucket-name
 Secrets like AWS credentials should be handled via environment variables or secret managers in production.
+
+## 📬 Email (SES)
+
+**How it works**
+- `MailingList` (DynamoDB) is the master email list and the source of truth. Manage it in the admin console under **Family Email → Mailing list**. *Sync from site data* pulls in family-tree, sign-up and account emails. *Import Google Group CSV* reads a Google Groups member export. Neither one re-subscribes anyone who unsubscribed, bounced or complained.
+- **Family Email → Compose** queues a job on the `Broadcasts` table, and the app invokes the `SendBroadcastFn` Lambda (`lambda-functions/send-broadcast.js`) asynchronously. The Lambda sends each recipient their own copy with an unsubscribe link, then writes progress back to the row, which the **Sent** tab shows. Attachments go from the browser straight to S3 (`email-attachments/`, deleted after 30 days) through presigned URLs.
+- Each successful sign-up (`POST /api/registrations`) queues a `signup` job. The new family gets a confirmation, and every other family registered that year gets an announcement, which you can switch off under **Settings**.
+- SES bounce and complaint events go through EventBridge to `EmailEventsFn` (`lambda-functions/email-events.js`), which marks the address on the list. Unsubscribe links go to `/api/unsubscribe`, which also supports Gmail/Yahoo one-click.
+- Mail is sent From `reunion@churchwellreunion.com` with Reply-To set to the admin Gmail. The domain has no mailbox.
+
+**Env vars (Vercel + `.env.local`)**
+```
+BROADCAST_FUNCTION_NAME=<SendBroadcastFunctionName stack output>
+ATTACHMENTS_BUCKET=<AttachmentsBucketName stack output>
+MAILING_LIST_TABLE=MailingList        # optional, this is the default
+BROADCASTS_TABLE=Broadcasts           # optional, this is the default
+```
+Sender name, address and Reply-To are set on the Lambda in `cdk/lib/cdk-stack.ts`.
+
+**One-time setup**
+1. `npx cdk deploy`. This creates the SES domain identity, config set, tables and Lambdas.
+2. DNS for churchwellreunion.com is hosted at **Vercel** (nameservers `ns1/ns2.vercel-dns.com`), not GoDaddy. In Vercel → Domains → churchwellreunion.com → DNS Records, add the records SES lists for the identity. Enter names without the `.churchwellreunion.com` suffix.
+   | Type | Name | Value |
+   |---|---|---|
+   | CNAME ×3 | `<token>._domainkey` | `<token>.dkim.amazonses.com` |
+   | MX (priority 10) | `mail` | `feedback-smtp.us-east-1.amazonses.com` |
+   | TXT | `mail` | `v=spf1 include:amazonses.com ~all` |
+   | TXT | `@` | `v=spf1 include:amazonses.com ~all` |
+   | TXT | `_dmarc` | `v=DMARC1; p=none; adkim=r; aspf=r` |
+   After 2–4 weeks of clean sending, tighten DMARC to `p=quarantine`.
+3. Wait for SES → Identities to show the domain as *Verified*, then request **production access** (SES → Account dashboard). Until it's approved, SES only delivers to verified addresses.
+4. Set the env vars above in Vercel and redeploy.
+5. Check: send a test from the admin console, then in Gmail open ⋮ → *Show original*. SPF, DKIM and DMARC should all show PASS.
 
 🧪 Usage
 Run locally:

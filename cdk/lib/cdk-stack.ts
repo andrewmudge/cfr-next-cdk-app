@@ -8,6 +8,9 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as apprunner from '@aws-cdk/aws-apprunner-alpha';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as ses from 'aws-cdk-lib/aws-ses';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 
 export class CfrNextStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -15,7 +18,24 @@ export class CfrNextStack extends Stack {
 
     // S3 Bucket
     const bucket = new s3.Bucket(this, 'CfrPhotoBucket', {
-      // You can set other bucket props here if needed
+      // The admin console uploads email attachments straight from the browser (presigned PUT).
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: [
+            'https://churchwellreunion.com',
+            'https://www.churchwellreunion.com',
+            'https://*.vercel.app',
+            'http://localhost:3000',
+          ],
+          allowedHeaders: ['*'],
+          maxAge: 3000,
+        },
+      ],
+      lifecycleRules: [
+        // Attachments are only needed while a send runs; keep them a month for re-sends.
+        { id: 'ExpireEmailAttachments', prefix: 'email-attachments/', expiration: Duration.days(30) },
+      ],
     });
 
     // Add bucket policy for public read access to photos
@@ -60,6 +80,106 @@ export class CfrNextStack extends Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
     });
+
+    // ---------- Email (SES) ----------
+
+    // The master email list: the source of truth for family-wide emails.
+    const mailingListTable = new dynamodb.Table(this, 'MailingList', {
+      partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
+      tableName: 'MailingList',
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+    });
+    // Unsubscribe links carry a random token, looked up here.
+    mailingListTable.addGlobalSecondaryIndex({
+      indexName: 'byUnsubToken',
+      partitionKey: { name: 'unsubToken', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+    });
+
+    // Email send history + status (and one 'settings' item).
+    const broadcastsTable = new dynamodb.Table(this, 'Broadcasts', {
+      partitionKey: { name: 'broadcastId', type: dynamodb.AttributeType.STRING },
+      tableName: 'Broadcasts',
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    const EMAIL_DOMAIN = 'churchwellreunion.com';
+    // DNS for this domain is hosted at Vercel: the DKIM CNAMEs and MAIL FROM MX/TXT
+    // records shown in the SES console must be added there by hand.
+    const emailIdentity = new ses.EmailIdentity(this, 'EmailDomainIdentity', {
+      identity: ses.Identity.domain(EMAIL_DOMAIN),
+      mailFromDomain: `mail.${EMAIL_DOMAIN}`,
+      dkimSigning: true,
+    });
+
+    const emailConfigSet = new ses.ConfigurationSet(this, 'EmailConfigSet', {
+      configurationSetName: 'cfr-email',
+      suppressionReasons: ses.SuppressionReasons.BOUNCES_AND_COMPLAINTS,
+    });
+    const defaultBus = events.EventBus.fromEventBusName(this, 'DefaultEventBus', 'default');
+    emailConfigSet.addEventDestination('BouncesAndComplaints', {
+      destination: ses.EventDestination.eventBus(defaultBus),
+      events: [ses.EmailSendingEvent.BOUNCE, ses.EmailSendingEvent.COMPLAINT],
+    });
+
+    const configSetArn = `arn:aws:ses:${this.region}:${this.account}:configuration-set/${emailConfigSet.configurationSetName}`;
+    const sesSendPolicy = new iam.PolicyStatement({
+      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+      resources: [emailIdentity.emailIdentityArn, configSetArn],
+    });
+
+    const lambdaCode = lambda.Code.fromAsset(path.join(__dirname, '../../cfr-next/lambda-functions'));
+
+    // Sends admin broadcasts and sign-up emails. Invoked asynchronously by the Next.js app.
+    const sendBroadcastFn = new lambda.Function(this, 'SendBroadcastFn', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'send-broadcast.handler',
+      code: lambdaCode,
+      environment: {
+        MAILING_LIST_TABLE: mailingListTable.tableName,
+        BROADCASTS_TABLE: broadcastsTable.tableName,
+        REGISTRATIONS_TABLE: 'ReunionRegistrations',
+        ATTACHMENTS_BUCKET: bucket.bucketName,
+        SES_CONFIG_SET: emailConfigSet.configurationSetName,
+        SES_FROM_ADDRESS: `reunion@${EMAIL_DOMAIN}`,
+        SES_FROM_NAME: 'Churchwell Family Reunion',
+        SES_REPLY_TO: 'mudge.andrew@gmail.com',
+        PUBLIC_SITE_URL: `https://${EMAIL_DOMAIN}`,
+      },
+      timeout: Duration.minutes(15),
+      memorySize: 1024,
+      retryAttempts: 0, // never double-send; failures are recorded on the Broadcast row
+    });
+    sendBroadcastFn.addToRolePolicy(sesSendPolicy);
+    sendBroadcastFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['ses:GetAccount'], resources: ['*'] }));
+    mailingListTable.grantReadWriteData(sendBroadcastFn);
+    broadcastsTable.grantReadWriteData(sendBroadcastFn);
+    bucket.grantRead(sendBroadcastFn, 'email-attachments/*');
+    sendBroadcastFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:GetItem', 'dynamodb:Query'],
+      resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/ReunionRegistrations`],
+    }));
+
+    // Marks bounced / complained addresses on the mailing list.
+    const emailEventsFn = new lambda.Function(this, 'EmailEventsFn', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'email-events.handler',
+      code: lambdaCode,
+      environment: { MAILING_LIST_TABLE: mailingListTable.tableName },
+      timeout: Duration.seconds(30),
+    });
+    mailingListTable.grantReadWriteData(emailEventsFn);
+    new events.Rule(this, 'SesBounceComplaintRule', {
+      eventPattern: { source: ['aws.ses'], detailType: ['Email Bounced', 'Email Complaint Received'] },
+      targets: [new targets.LambdaFunction(emailEventsFn)],
+    });
+
+    new CfnOutput(this, 'SendBroadcastFunctionName', { value: sendBroadcastFn.functionName });
+    new CfnOutput(this, 'AttachmentsBucketName', { value: bucket.bucketName });
+    new CfnOutput(this, 'EmailIdentityName', { value: emailIdentity.emailIdentityName });
 
     // Cognito User Pool
     const userPool = new cognito.UserPool(this, 'UserPool', {
@@ -189,6 +309,11 @@ export class CfrNextStack extends Stack {
     const cfrDevUser = iam.User.fromUserName(this, 'CfrDevUser', 'cfr-dev');
     familyMembersTable.grantReadWriteData(cfrDevUser);
     registrationsTable.grantReadWriteData(cfrDevUser);
+    // ...and to the email list, send history, attachment uploads and queueing sends.
+    mailingListTable.grantReadWriteData(cfrDevUser);
+    broadcastsTable.grantReadWriteData(cfrDevUser);
+    bucket.grantPut(cfrDevUser, 'email-attachments/*');
+    sendBroadcastFn.grantInvoke(cfrDevUser);
 
     // App Runner Service (placeholder image initially)
     new apprunner.Service(this, 'MyNextAppService', {

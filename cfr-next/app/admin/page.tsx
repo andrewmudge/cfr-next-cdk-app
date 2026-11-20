@@ -10,6 +10,7 @@ import PendingUsers from '@/components/admin/PendingUsers';
 import UserEditor from '@/components/admin/UserEditor';
 import ManagePhotos from '@/components/admin/ManagePhotos';
 import Registrations from '@/components/admin/Registrations';
+import Messaging from '@/components/admin/Messaging';
 import { getAllUsers } from '@/lib/user-status';
 
 // Helper to fetch photo count from Lambda
@@ -185,6 +186,11 @@ export default function AdminDashboard() {
         {/* Reunion sign-ups */}
         <div className="mt-8">
           <Registrations />
+        </div>
+
+        {/* Family email (SES) */}
+        <div className="mt-8">
+          <Messaging />
         </div>
 
         {/* User Editor */}

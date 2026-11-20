@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { createRegistration } from '@/lib/reunion-db';
 import {
@@ -8,8 +8,12 @@ import {
   MAX_ATTENDEES,
   MAX_DOGS,
   currentReunionYear,
+  formatReunionDates,
+  ordinal,
+  reunionNumber,
 } from '@/lib/reunion-config';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
+import { emailConfigured, queueBroadcast } from '@/lib/messaging/broadcast';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,9 +79,10 @@ export async function POST(req: NextRequest) {
   // Bot filled the honeypot: pretend success, store nothing.
   if (v.website) return NextResponse.json({ ok: true, attendees: [], lines: [], totalCents: 0 }, { status: 201 });
 
+  const year = currentReunionYear();
   try {
     const result = await createRegistration({
-      year: currentReunionYear(),
+      year,
       submitter: v.submitter,
       email: v.email.toLowerCase(),
       phone: v.phone ? `+1${cleanPhoneNumber(v.phone)}` : '',
@@ -91,7 +96,27 @@ export async function POST(req: NextRequest) {
       dogs: v.dogs,
       notes: v.notes,
     });
-    if (result.ok) return NextResponse.json(result, { status: 201 });
+    if (result.ok) {
+      // Confirmation to this family + announcement to every other registered family.
+      // Runs after the response is sent; a failure here never fails the sign-up.
+      if (emailConfigured()) {
+        const submissionId = result.submissionId;
+        after(async () => {
+          try {
+            const y = Number(year);
+            await queueBroadcast({
+              kind: 'signup',
+              year,
+              submissionId,
+              reunionLabel: `${ordinal(reunionNumber(y))} annual Churchwell Family Reunion (${formatReunionDates(y, 'short')})`,
+            });
+          } catch (err) {
+            console.error('Queueing sign-up emails failed', submissionId, err);
+          }
+        });
+      }
+      return NextResponse.json(result, { status: 201 });
+    }
     if (result.reason === 'already_registered') {
       return NextResponse.json({ error: 'already_registered', alreadyRegistered: result.alreadyRegistered }, { status: 409 });
     }
