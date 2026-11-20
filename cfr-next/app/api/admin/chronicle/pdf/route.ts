@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error('GET /api/admin/chronicle/pdf failed', err);
-    return NextResponse.json({ error: 'Could not build the PDF.' }, { status: 500 });
+    // Admin-only route, so show the real cause.
+    return NextResponse.json({ error: `Could not build the PDF: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
   }
 }
