@@ -14,6 +14,7 @@ import {
 } from '@/lib/reunion-config';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
 import { emailConfigured, queueBroadcast } from '@/lib/messaging/broadcast';
+import { getSiteSettings } from '@/lib/site-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,15 @@ const schema = z
   });
 
 export async function POST(req: NextRequest) {
+  // The admin can close sign-ups; refuse even if someone still has the form open.
+  try {
+    if (!(await getSiteSettings()).signupsOpen) {
+      return NextResponse.json({ error: 'Sign-ups are closed right now.' }, { status: 403 });
+    }
+  } catch (err) {
+    console.error('Reading site settings failed; allowing sign-up', err);
+  }
+
   let body: unknown;
   try {
     body = await req.json();

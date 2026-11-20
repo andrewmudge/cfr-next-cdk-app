@@ -3,9 +3,11 @@
 import { motion } from 'framer-motion';
 import { Mail, Instagram } from 'lucide-react';
 import { formatReunionDates, reunionYear } from '@/lib/reunion-config';
+import { useSignupsOpen } from '@/hooks/use-signups-open';
 
 const Footer = () => {
   const year = reunionYear();
+  const signupsOpen = useSignupsOpen();
   return (
     <footer className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white py-12">
       <div className="container mx-auto px-4">
@@ -52,7 +54,7 @@ const Footer = () => {
                 { label: 'Cabinet', href: '#cabinet' },
                 { label: 'Schedule', href: '#schedule' },
                 { label: 'Games', href: '#games' },
-                { label: 'Sign Up', href: '#register' },
+                ...(signupsOpen ? [{ label: 'Sign Up', href: '#register' }] : []),
                 { label: 'Family Album', href: '#family-album' },
                 { label: 'Payments', href: '#payments' },
                 { label: 'Contact', href: '#contact' },

@@ -21,6 +21,7 @@ import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
 import CountdownPopup from '@/components/CountdownPopup';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useSignupsOpen } from '@/hooks/use-signups-open';
 
 function AdminRedirectHandler() {
   const { user, openAuthModal } = useAuth();
@@ -43,6 +44,7 @@ function AdminRedirectHandler() {
 
 function HomeContent() {
   const [mounted, setMounted] = useState(false);
+  const signupsOpen = useSignupsOpen();
 
   useEffect(() => {
     setMounted(true);
@@ -75,7 +77,7 @@ function HomeContent() {
           <ThemeSection />
           <ScheduleSection />
           <NewsletterSection />
-          <RegisterSection />
+          {signupsOpen && <RegisterSection />}
           {/* ...removed unused GamesSection... */}
           <FamilyAlbumSection />
           <PaymentsSection />

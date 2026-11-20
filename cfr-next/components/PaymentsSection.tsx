@@ -4,8 +4,10 @@
 import { DollarSign, Shirt, CreditCard, Users, Baby, Clock, Crown, Dog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ADULT_RATES, AGE_GROUPS, DOG_DUES_CENTS } from '@/lib/reunion-config';
+import { useSignupsOpen } from '@/hooks/use-signups-open';
 
 const PaymentsSection = () => {
+  const signupsOpen = useSignupsOpen();
   // Prices come from lib/reunion-config.ts so this list always matches what the sign-up form charges.
   const age = (id: string) => AGE_GROUPS.find((g) => g.id === id)!;
   const rate = (id: string) => ADULT_RATES.find((r) => r.id === id)!;
@@ -71,10 +73,12 @@ const PaymentsSection = () => {
                 })}
               </div>
 
-              <p className="mt-6 text-center text-slate-600">
-                <a href="#register" className="text-red-600 font-medium underline underline-offset-4">Sign up</a>{' '}
-                and we&apos;ll total your family&apos;s dues for you.
-              </p>
+              {signupsOpen && (
+                <p className="mt-6 text-center text-slate-600">
+                  <a href="#register" className="text-red-600 font-medium underline underline-offset-4">Sign up</a>{' '}
+                  and we&apos;ll total your family&apos;s dues for you.
+                </p>
+              )}
 
               {/* Payment Button */}
               <div className="mt-8 text-center">

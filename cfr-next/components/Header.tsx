@@ -6,11 +6,13 @@ import { Menu, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { reunionYear } from '@/lib/reunion-config';
+import { useSignupsOpen } from '@/hooks/use-signups-open';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const { user, signOut } = useAuth();
+  const signupsOpen = useSignupsOpen();
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -24,7 +26,7 @@ const Header = () => {
     { href: '#cabinet', label: 'Cabinet' },
     { href: '#theme', label: 'Theme' },
     { href: '#schedule', label: 'Schedule' },
-    { href: '#register', label: 'Sign Up' },
+    ...(signupsOpen ? [{ href: '#register', label: 'Sign Up' }] : []),
     // { href: '#games', label: 'Games' },
     { href: '#family-album', label: 'Family Album' },
     { href: '#payments', label: 'Payments' },

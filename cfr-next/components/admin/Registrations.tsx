@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { ClipboardList, Download, Loader2, RefreshCw, Trash2, UserCheck, X } from 'lucide-react';
+import { ClipboardList, Download, Loader2, Lock, LockOpen, RefreshCw, Trash2, UserCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ACTIVITIES, formatDollars, rateLabel, type ActivityId, type AdultRateId, type AgeGroupId } from '@/lib/reunion-config';
+import { resetSignupsOpenCache } from '@/hooks/use-signups-open';
 
 interface Submission {
   submissionId: string;
@@ -52,6 +53,42 @@ export default function Registrations() {
   const [unverified, setUnverified] = useState<Unverified[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  /** Public sign-ups on/off (null while loading). */
+  const [signupsOpen, setSignupsOpen] = useState<boolean | null>(null);
+  const [savingOpen, setSavingOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/site-settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setSignupsOpen(d.signupsOpen !== false))
+      .catch(() => setSignupsOpen(null));
+  }, []);
+
+  const toggleSignups = async () => {
+    if (signupsOpen === null) return;
+    const next = !signupsOpen;
+    const msg = next
+      ? 'Open sign-ups? The sign-up form will be visible on the public site again.'
+      : 'Close sign-ups? The sign-up form and links will be hidden from the public site and new sign-ups will be refused.';
+    if (!window.confirm(msg)) return;
+    setSavingOpen(true);
+    try {
+      const res = await fetch('/api/admin/site-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signupsOpen: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not save.');
+      setSignupsOpen(data.signupsOpen);
+      resetSignupsOpenCache();
+      toast.success(data.signupsOpen ? 'Sign-ups are open.' : 'Sign-ups are closed.');
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSavingOpen(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -204,7 +241,24 @@ export default function Registrations() {
           Sign-Ups
           {!loading && <span className="text-gray-400 font-normal text-base">({people.length} people, {subs.length} families)</span>}
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            onClick={toggleSignups}
+            disabled={signupsOpen === null || savingOpen}
+            aria-pressed={!!signupsOpen}
+            title={signupsOpen ? 'Click to close public sign-ups' : 'Click to open public sign-ups'}
+            className={signupsOpen ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-600 hover:bg-slate-500 text-white'}
+          >
+            {savingOpen ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : signupsOpen ? (
+              <LockOpen className="w-4 h-4 mr-1" />
+            ) : (
+              <Lock className="w-4 h-4 mr-1" />
+            )}
+            {signupsOpen === null ? 'Sign-ups…' : signupsOpen ? 'Sign-ups open' : 'Sign-ups closed'}
+          </Button>
           <Button size="sm" variant="outline" onClick={load} className="border-slate-500 text-slate-200 hover:bg-slate-700">
             <RefreshCw className="w-4 h-4 mr-1" /> Refresh
           </Button>
