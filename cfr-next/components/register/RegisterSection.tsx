@@ -114,7 +114,7 @@ export default function RegisterSection() {
   const [loadError, setLoadError] = useState(false);
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [step, setStep] = useState<'form' | 'review' | 'done'>('form');
+  const [step, setStep] = useState<'form' | 'dogs' | 'review' | 'done'>('form');
   const [submitting, setSubmitting] = useState(false);
   const [removedNotice, setRemovedNotice] = useState<RegisteredPerson[]>([]);
   const [done, setDone] = useState<{
@@ -233,13 +233,18 @@ export default function RegisterSection() {
     return null;
   };
 
-  const goReview = () => {
+  const goTo = (next: 'dogs' | 'review') => {
+    setStep(next);
+    document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  /** Step 1 -> step 2 (dogs). */
+  const goDogs = () => {
     const err = validate();
     if (err) return toast.error(err);
     // Drop rows left blank so they don't confuse the summary.
     setDraft((d) => ({ ...d, rows: d.rows.filter((r) => r.person) }));
-    setStep('review');
-    document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
+    goTo('dogs');
   };
 
   const submit = async () => {
@@ -369,6 +374,52 @@ export default function RegisterSection() {
               Sign up another family
             </Button>
           </div>
+        ) : step === 'dogs' ? (
+          <div className="rounded-2xl bg-white p-5 sm:p-8 shadow-lg space-y-6">
+            <p className="text-sm font-medium text-slate-400">Step 2 of 2</p>
+            <div>
+              <h3 className="text-2xl font-bold text-slate-800">Bringing any dogs?</h3>
+              <p className="text-slate-600 mt-1">Dogs are $5 each for the weekend. Leave it at 0 if you&apos;re not bringing any.</p>
+            </div>
+          {/* Dog counter */}
+          <div className="flex items-center justify-between gap-4 rounded-xl border-2 border-slate-200 p-4">
+            <div>
+              <p className="font-semibold text-slate-800">🐕 Dogs</p>
+              <p className="text-sm text-slate-500">$5 per dog</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                aria-label="One less dog"
+                disabled={draft.dogs <= 0}
+                onClick={() => update({ dogs: Math.max(0, draft.dogs - 1) })}
+                className="w-11 h-11 rounded-full border-2 border-slate-300 text-xl font-bold text-slate-700 disabled:opacity-30"
+              >
+                −
+              </button>
+              <span className="w-6 text-center text-xl font-bold text-slate-800" aria-live="polite">
+                {draft.dogs}
+              </span>
+              <button
+                type="button"
+                aria-label="One more dog"
+                disabled={draft.dogs >= MAX_DOGS}
+                onClick={() => update({ dogs: Math.min(MAX_DOGS, draft.dogs + 1) })}
+                className="w-11 h-11 rounded-full border-2 border-slate-300 text-xl font-bold text-slate-700 disabled:opacity-30"
+              >
+                +
+              </button>
+            </div>
+          </div>
+            <div className="flex flex-col-reverse sm:flex-row gap-3">
+              <Button variant="outline" size="lg" className="min-h-[52px] sm:flex-1" onClick={() => setStep('form')}>
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back
+              </Button>
+              <Button size="lg" className="min-h-[52px] sm:flex-[2] bg-red-600 hover:bg-red-700 text-white text-lg" onClick={() => goTo('review')}>
+                Review sign-up
+              </Button>
+            </div>
+          </div>
         ) : step === 'review' ? (
           <div className="rounded-2xl bg-white p-5 sm:p-8 shadow-lg space-y-6">
             {removedNotice.length > 0 && (
@@ -451,7 +502,7 @@ export default function RegisterSection() {
               className="rounded-2xl bg-white p-5 sm:p-8 shadow-lg space-y-8"
               onSubmit={(e) => {
                 e.preventDefault();
-                goReview();
+                goDogs();
               }}
             >
               {/* Honeypot: hidden from people, bots fill it in */}
@@ -465,6 +516,8 @@ export default function RegisterSection() {
                 aria-hidden="true"
                 className="hidden"
               />
+
+              <p className="text-sm font-medium text-slate-400">Step 1 of 2</p>
 
               {/* About you (the person signing up is always coming) */}
               <fieldset className="space-y-4">
@@ -685,39 +738,8 @@ export default function RegisterSection() {
               </div>
               )}
 
-              {/* Dogs */}
-              <div className="flex items-center justify-between gap-4 rounded-xl border-2 border-slate-200 p-4">
-                <div>
-                  <p className="font-semibold text-slate-800">🐕 Bringing dogs?</p>
-                  <p className="text-sm text-slate-500">$5 per dog</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    aria-label="One less dog"
-                    disabled={draft.dogs <= 0}
-                    onClick={() => update({ dogs: Math.max(0, draft.dogs - 1) })}
-                    className="w-11 h-11 rounded-full border-2 border-slate-300 text-xl font-bold text-slate-700 disabled:opacity-30"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center text-xl font-bold text-slate-800" aria-live="polite">
-                    {draft.dogs}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="One more dog"
-                    disabled={draft.dogs >= MAX_DOGS}
-                    onClick={() => update({ dogs: Math.min(MAX_DOGS, draft.dogs + 1) })}
-                    className="w-11 h-11 rounded-full border-2 border-slate-300 text-xl font-bold text-slate-700 disabled:opacity-30"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
               <Button type="submit" size="lg" className="w-full min-h-[56px] bg-red-600 hover:bg-red-700 text-white text-lg">
-                Review sign-up
+                Next
               </Button>
             </form>
           </div>
