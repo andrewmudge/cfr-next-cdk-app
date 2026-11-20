@@ -1,4 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text -- react-pdf's <Image> has no alt prop */
+import { readFileSync } from 'fs';
+import path from 'path';
 import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import { CHRONICLE_NAME, issueInfo } from '@/lib/chronicle/issues';
 import { getPhotoBuffer } from '@/lib/chronicle/storage';
@@ -8,6 +10,21 @@ import type { ChronicleEntry, ChronicleMeta } from '@/lib/chronicle/db';
 Font.registerEmojiSource({ format: 'png', url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/' });
 // Don't hyphenate names or words mid-line.
 Font.registerHyphenationCallback((word) => [word]);
+
+// The site's round seal (header/footer). Shipped with the PDF routes via
+// outputFileTracingIncludes in next.config.ts. Missing file = no logo, not an error.
+let logoCache: Buffer | null | undefined;
+function loadLogo(): Buffer | null {
+  if (logoCache === undefined) {
+    try {
+      logoCache = readFileSync(path.join(process.cwd(), 'public', 'favicon.png'));
+    } catch (err) {
+      console.error('Chronicle PDF: logo not found', err);
+      logoCache = null;
+    }
+  }
+  return logoCache;
+}
 
 const RED = '#b91c1c';
 const INK = '#1e293b';
@@ -23,7 +40,8 @@ const GRID_H = 190;
 
 const s = StyleSheet.create({
   page: { paddingTop: MARGIN, paddingBottom: MARGIN + 18, paddingHorizontal: MARGIN, fontFamily: 'Helvetica', fontSize: 11.5, color: INK, lineHeight: 1.45 },
-  cover: { flexGrow: 1, justifyContent: 'center' },
+  cover: { paddingTop: 8 },
+  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 20 },
   rule: { height: 3, backgroundColor: RED, marginVertical: 14 },
   title: { fontFamily: 'Times-Bold', fontSize: 44, textAlign: 'center', lineHeight: 1.1 },
   subtitle: { fontFamily: 'Times-Italic', fontSize: 18, textAlign: 'center', color: MUTED },
@@ -74,12 +92,13 @@ function Photos({ photos }: { photos: LoadedPhoto[] }) {
   );
 }
 
-function ChronicleDocument({ meta, entries }: { meta: ChronicleMeta; entries: LoadedEntry[] }) {
+function ChronicleDocument({ meta, entries, logo }: { meta: ChronicleMeta; entries: LoadedEntry[]; logo: Buffer | null }) {
   const info = issueInfo(meta.issueId);
   return (
     <Document title={`${CHRONICLE_NAME} — ${info.label}`} author="Churchwell Family Reunion" creator="churchwellreunion.com">
       <Page size="LETTER" style={s.page}>
         <View style={s.cover}>
+          {logo && <Image src={{ data: logo, format: 'png' }} style={s.logo} />}
           <Text style={s.title}>{CHRONICLE_NAME}</Text>
           <View style={s.rule} />
           <Text style={s.subtitle}>
@@ -147,5 +166,5 @@ export async function renderChroniclePdf(meta: ChronicleMeta, entries: Chronicle
     );
     loaded.push({ ...e, loaded: photos.filter((p): p is LoadedPhoto => !!p) });
   }
-  return renderToBuffer(<ChronicleDocument meta={meta} entries={loaded} />);
+  return renderToBuffer(<ChronicleDocument meta={meta} entries={loaded} logo={loadLogo()} />);
 }
