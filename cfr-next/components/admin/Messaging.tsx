@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { FileUp, Loader2, Mail, Paperclip, RefreshCw, Send, Trash2, Upload, UserPlus, X } from 'lucide-react';
+import { Archive, ArchiveRestore, FileUp, Loader2, Mail, Paperclip, RefreshCw, Send, Trash2, Upload, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // ---------- Types (mirror lib/messaging/*) ----------
 
-type MemberStatus = 'subscribed' | 'unsubscribed' | 'bounced' | 'complained';
+type MemberStatus = 'subscribed' | 'archived' | 'unsubscribed' | 'bounced' | 'complained';
 interface Member {
   email: string;
   name?: string;
@@ -117,7 +117,6 @@ export default function Messaging() {
           <TabsTrigger value="compose">Compose</TabsTrigger>
           <TabsTrigger value="list">Mailing list</TabsTrigger>
           <TabsTrigger value="history">Sent</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="compose" className="pt-4">
           <Compose
@@ -133,9 +132,6 @@ export default function Messaging() {
         </TabsContent>
         <TabsContent value="history" className="pt-4">
           <History key={historyKey} />
-        </TabsContent>
-        <TabsContent value="settings" className="pt-4">
-          <Settings />
         </TabsContent>
       </Tabs>
     </div>
@@ -398,34 +394,61 @@ async function fileToCsv(file: File): Promise<string> {
 
 const STATUS_STYLE: Record<MemberStatus, string> = {
   subscribed: 'text-green-300',
+  archived: 'text-slate-300',
   unsubscribed: 'text-gray-400',
   bounced: 'text-red-300',
   complained: 'text-amber-300',
 };
+const STATUS_LABEL: Record<MemberStatus, string> = {
+  subscribed: 'active',
+  archived: 'archived',
+  unsubscribed: 'unsubscribed',
+  bounced: 'bounced',
+  complained: 'marked as spam',
+};
+// Statuses shown (and selectable) in the Active view; archived people live in the Archive view.
+const ACTIVE_VIEW_STATUSES: MemberStatus[] = ['subscribed', 'unsubscribed', 'bounced', 'complained'];
+
+type ImportPreview = {
+  csv: string;
+  list: 'active' | 'archive';
+  found: number;
+  new: number;
+  alreadyOnList: number;
+  alreadyActive: number;
+  alreadyArchived: number;
+  invalid: string[];
+  sample: string[];
+};
 
 function MailingList({ members, loading, reload }: { members: Member[]; loading: boolean; reload: () => Promise<void> }) {
+  const [view, setView] = useState<'active' | 'archive'>('active');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all');
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState('');
-  const [preview, setPreview] = useState<{ csv: string; found: number; new: number; alreadyOnList: number; invalid: string[]; sample: string[] } | null>(null);
+  const [importInto, setImportInto] = useState<'active' | 'archive'>('active');
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { subscribed: 0, unsubscribed: 0, bounced: 0, complained: 0 };
+    const c: Record<string, number> = {};
     members.forEach((m) => (c[m.status] = (c[m.status] || 0) + 1));
     return c;
   }, [members]);
+  const archivedCount = counts.archived || 0;
+  const activeViewCount = members.length - archivedCount;
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return members.filter(
       (m) =>
-        (statusFilter === 'all' || m.status === statusFilter) &&
+        (view === 'archive' ? m.status === 'archived' : m.status !== 'archived') &&
+        (view === 'archive' || statusFilter === 'all' || m.status === statusFilter) &&
         (!q || m.email.includes(q) || (m.name || '').toLowerCase().includes(q))
     );
-  }, [members, query, statusFilter]);
+  }, [members, query, statusFilter, view]);
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
@@ -441,7 +464,7 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
   const add = () =>
     run('add', async () => {
       await api('/api/admin/mailing-list', { method: 'POST', body: JSON.stringify({ email: newEmail, name: newName }) });
-      toast.success(`Added ${newEmail}`);
+      toast.success(`Added ${newEmail} to the active list`);
       setNewEmail('');
       setNewName('');
       await reload();
@@ -460,11 +483,11 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
   const pickFile = (file: File) =>
     run('preview', async () => {
       const csv = await fileToCsv(file);
-      const p = await api<Omit<NonNullable<typeof preview>, 'csv'>>('/api/admin/mailing-list/import', {
+      const p = await api<Omit<ImportPreview, 'csv' | 'list'>>('/api/admin/mailing-list/import', {
         method: 'POST',
-        body: JSON.stringify({ csv, dryRun: true }),
+        body: JSON.stringify({ csv, dryRun: true, list: importInto }),
       });
-      setPreview({ ...p, csv });
+      setPreview({ ...p, csv, list: importInto });
     });
 
   const confirmImport = () =>
@@ -472,9 +495,10 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
       if (!preview) return;
       const r = await api<{ added: number; updated: number }>('/api/admin/mailing-list/import', {
         method: 'POST',
-        body: JSON.stringify({ csv: preview.csv }),
+        body: JSON.stringify({ csv: preview.csv, list: preview.list }),
       });
-      toast.success(`Imported: ${r.added} added, ${r.updated} updated.`);
+      toast.success(`Imported into the ${preview.list} list: ${r.added} added, ${r.updated} updated.`);
+      setView(preview.list);
       setPreview(null);
       await reload();
     });
@@ -486,24 +510,53 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
     });
 
   const remove = (m: Member) => {
-    if (!window.confirm(`Remove ${m.email} from the list? (To stop emails but remember the choice, set them to unsubscribed instead.)`)) return;
+    if (!window.confirm(`Delete ${m.email} completely? (To keep it on file without emailing, archive it instead.)`)) return;
     run(m.email, async () => {
       await api(`/api/admin/mailing-list/${encodeURIComponent(m.email)}`, { method: 'DELETE' });
       await reload();
     });
   };
 
+  const viewBtn = (v: 'active' | 'archive', label: string) => (
+    <button
+      type="button"
+      onClick={() => setView(v)}
+      aria-pressed={view === v}
+      className={`rounded-md px-3 py-1.5 text-sm ${view === v ? 'bg-slate-600 text-white' : 'text-gray-400 hover:text-white'}`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" className={outlineBtn} onClick={sync} disabled={!!busy}>
           {busy === 'sync' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
           Sync from site data
         </Button>
-        <Button size="sm" variant="outline" className={outlineBtn} onClick={() => fileRef.current?.click()} disabled={!!busy}>
-          {busy === 'preview' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileUp className="w-4 h-4 mr-1" />}
-          Import list (Excel or CSV)
-        </Button>
+        <div className="flex items-center gap-1 rounded-md border border-slate-600 pl-2">
+          <label htmlFor="import-into" className="text-xs text-gray-400">
+            Import into
+          </label>
+          <select
+            id="import-into"
+            value={importInto}
+            onChange={(e) => setImportInto(e.target.value as 'active' | 'archive')}
+            className="bg-transparent text-sm text-white py-1"
+          >
+            <option value="active" className="bg-slate-900">
+              Active list
+            </option>
+            <option value="archive" className="bg-slate-900">
+              Archive
+            </option>
+          </select>
+          <Button size="sm" variant="outline" className={`${outlineBtn} border-0 border-l rounded-l-none`} onClick={() => fileRef.current?.click()} disabled={!!busy}>
+            {busy === 'preview' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileUp className="w-4 h-4 mr-1" />}
+            Choose Excel or CSV
+          </Button>
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -517,22 +570,37 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
         />
       </div>
       <p className="text-xs text-gray-500">
-        Sync pulls emails from the family tree, every year&apos;s sign-ups and site accounts. Import takes an Excel (.xlsx) or CSV file
-        with an Email column, plus optional Name or First Name / Last Name columns (a Google Groups member export works too). You
-        see a preview before anything is added, and neither one re-subscribes anyone who unsubscribed.
+        <strong className="text-gray-400">Active</strong> people get emails. <strong className="text-gray-400">Archive</strong> keeps
+        addresses on file (e.g. people who used to come) but never emails them; an archived person who signs up again moves back to
+        Active. Import takes an Excel (.xlsx) or CSV file with an Email column, plus optional Name or First Name / Last Name. Imports
+        and syncs only add new addresses; people already on the list keep their status. Sync pulls emails from the family tree, every
+        year&apos;s sign-ups and site accounts, all into Active.
       </p>
 
       {preview && (
         <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 p-4 text-sm text-sky-100 space-y-2">
           <p>
-            Found <strong>{preview.found}</strong> addresses: <strong>{preview.new}</strong> new, {preview.alreadyOnList} already on the list
+            Found <strong>{preview.found}</strong> addresses: <strong>{preview.new}</strong> new
+            {preview.list === 'archive' ? ' (will be archived, not emailed)' : ' (will be active)'}, {preview.alreadyOnList} already on
+            the list
             {preview.invalid.length > 0 && `, ${preview.invalid.length} unreadable`}.
           </p>
+          {preview.list === 'archive' && preview.alreadyActive > 0 && (
+            <p className="text-amber-200">
+              {preview.alreadyActive} of these are already on the active list and will stay active. Archive them by hand if they
+              shouldn&apos;t get emails.
+            </p>
+          )}
+          {preview.list === 'active' && preview.alreadyArchived > 0 && (
+            <p className="text-amber-200">
+              {preview.alreadyArchived} of these are in the archive and will stay archived. Restore them by hand to email them.
+            </p>
+          )}
           {preview.sample.length > 0 && <p className="text-sky-200/80">New, e.g. {preview.sample.join(', ')}</p>}
           <div className="flex gap-2">
-            <Button size="sm" className="bg-sky-600 hover:bg-sky-700 text-white" onClick={confirmImport} disabled={!!busy}>
+            <Button size="sm" className="bg-sky-600 hover:bg-sky-700 text-white" onClick={confirmImport} disabled={!!busy || !preview.new}>
               {busy === 'import' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
-              Import {preview.new} new
+              Add {preview.new} to {preview.list === 'archive' ? 'the archive' : 'the active list'}
             </Button>
             <Button size="sm" variant="outline" className={outlineBtn} onClick={() => setPreview(null)}>
               Cancel
@@ -550,26 +618,38 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex rounded-md border border-slate-600 bg-slate-900 p-0.5" role="group" aria-label="Which list">
+          {viewBtn('active', `Active (${activeViewCount})`)}
+          {viewBtn('archive', `Archive (${archivedCount})`)}
+        </div>
         <input className={`${inputCls} max-w-xs`} placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select
-          className="rounded-md border border-slate-600 bg-slate-900 px-2 py-2 text-white"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          aria-label="Filter by status"
-        >
-          <option value="all">All ({members.length})</option>
-          {(['subscribed', 'unsubscribed', 'bounced', 'complained'] as const).map((s) => (
-            <option key={s} value={s}>
-              {s} ({counts[s] || 0})
-            </option>
-          ))}
-        </select>
+        {view === 'active' && (
+          <select
+            className="rounded-md border border-slate-600 bg-slate-900 px-2 py-2 text-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            aria-label="Filter by status"
+          >
+            <option value="all">All ({activeViewCount})</option>
+            {ACTIVE_VIEW_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABEL[s]} ({counts[s] || 0})
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {loading ? (
         <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-      ) : !members.length ? (
-        <p className="text-gray-400">The list is empty. Start with &quot;Sync from site data&quot;, then import the Google Group.</p>
+      ) : !shown.length ? (
+        <p className="text-gray-400">
+          {view === 'archive'
+            ? 'The archive is empty. Import a file into the Archive, or archive people from the Active list.'
+            : !members.length
+              ? 'The list is empty. Import your list, or start with "Sync from site data".'
+              : 'No one matches.'}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-300">
@@ -592,31 +672,60 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
                   </td>
                   <td className="py-2 pr-4 text-xs text-gray-400">{(m.sources || []).join(', ')}</td>
                   <td className="py-2 pr-4">
-                    <select
-                      value={m.status}
-                      disabled={busy === m.email}
-                      onChange={(e) => setStatus(m, e.target.value as MemberStatus)}
-                      className={`rounded border border-slate-600 bg-slate-900 px-1 py-0.5 ${STATUS_STYLE[m.status]}`}
-                      aria-label={`Status for ${m.email}`}
-                      title={m.statusReason}
-                    >
-                      {(['subscribed', 'unsubscribed', 'bounced', 'complained'] as const).map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                    {view === 'archive' ? (
+                      <span className={STATUS_STYLE.archived} title={m.statusReason}>
+                        archived
+                      </span>
+                    ) : (
+                      <select
+                        value={m.status}
+                        disabled={busy === m.email}
+                        onChange={(e) => setStatus(m, e.target.value as MemberStatus)}
+                        className={`rounded border border-slate-600 bg-slate-900 px-1 py-0.5 ${STATUS_STYLE[m.status]}`}
+                        aria-label={`Status for ${m.email}`}
+                        title={m.statusReason}
+                      >
+                        {ACTIVE_VIEW_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_LABEL[s]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
-                  <td className="py-2 text-right">
-                    <button
-                      type="button"
-                      className="text-gray-500 hover:text-red-300"
-                      aria-label={`Remove ${m.email}`}
-                      onClick={() => remove(m)}
-                      disabled={busy === m.email}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <td className="py-2">
+                    <div className="flex items-center justify-end gap-3">
+                      {view === 'archive' ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs text-green-300 hover:text-green-200"
+                          onClick={() => setStatus(m, 'subscribed')}
+                          disabled={busy === m.email}
+                          aria-label={`Restore ${m.email} to the active list`}
+                        >
+                          <ArchiveRestore className="w-4 h-4" /> Restore
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-white"
+                          onClick={() => setStatus(m, 'archived')}
+                          disabled={busy === m.email}
+                          aria-label={`Archive ${m.email}`}
+                        >
+                          <Archive className="w-4 h-4" /> Archive
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="text-gray-500 hover:text-red-300"
+                        aria-label={`Delete ${m.email}`}
+                        onClick={() => remove(m)}
+                        disabled={busy === m.email}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -740,51 +849,6 @@ function History() {
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-// ---------- Settings ----------
-
-function Settings() {
-  const [announce, setAnnounce] = useState<boolean | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    api<{ announceSignups: boolean }>('/api/admin/messages/settings')
-      .then((s) => setAnnounce(s.announceSignups))
-      .catch((err) => toast.error((err as Error).message));
-  }, []);
-
-  const save = async (value: boolean) => {
-    setSaving(true);
-    try {
-      const s = await api<{ announceSignups: boolean }>('/api/admin/messages/settings', {
-        method: 'PUT',
-        body: JSON.stringify({ announceSignups: value }),
-      });
-      setAnnounce(s.announceSignups);
-      toast.success('Saved');
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (announce === null) return <Loader2 className="w-6 h-6 animate-spin text-slate-400" />;
-  return (
-    <div className="space-y-3 text-gray-200">
-      <label className="flex items-start gap-3">
-        <input type="checkbox" className="mt-1" checked={announce} disabled={saving} onChange={(e) => save(e.target.checked)} />
-        <span>
-          <span className="font-medium">Announce new sign-ups</span>
-          <span className="block text-sm text-gray-400">
-            When a family signs up, email every other family registered this year (&quot;___ just signed up 4 people!&quot;). The new
-            family always gets a confirmation email either way.
-          </span>
-        </span>
-      </label>
     </div>
   );
 }

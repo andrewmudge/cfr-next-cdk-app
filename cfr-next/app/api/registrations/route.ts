@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       notes: v.notes,
     });
     if (result.ok) {
-      // Confirmation to this family + announcement to every other registered family.
+      // Confirmation email to this family.
       // Runs after the response is sent; a failure here never fails the sign-up.
       if (emailConfigured()) {
         const submissionId = result.submissionId;

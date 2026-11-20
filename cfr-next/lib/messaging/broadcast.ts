@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { GetCommand, PutCommand, ScanCommand, UpdateCommand, type ScanCommandOutput } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, ScanCommand, UpdateCommand, type ScanCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '@/lib/reunion-db';
 
 // Emails are built and sent by the send-broadcast Lambda (lambda-functions/send-broadcast.js).
@@ -56,11 +56,7 @@ export interface BroadcastRecord {
   finishedAt?: string;
 }
 
-export interface MessagingSettings {
-  /** Email every registered family when someone new signs up. */
-  announceSignups: boolean;
-}
-const DEFAULT_SETTINGS: MessagingSettings = { announceSignups: true };
+// An old 'settings' row (from the removed sign-up announcement toggle) may exist; never list it.
 const SETTINGS_ID = 'settings';
 
 export const emailConfigured = () => !!FUNCTION_NAME;
@@ -112,22 +108,6 @@ export async function listBroadcasts(limit = 50): Promise<BroadcastRecord[]> {
     .filter((b) => b.broadcastId !== SETTINGS_ID)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
-}
-
-export async function getSettings(): Promise<MessagingSettings> {
-  const out = await docClient.send(new GetCommand({ TableName: BROADCASTS_TABLE, Key: { broadcastId: SETTINGS_ID } }));
-  const item = (out.Item ?? {}) as Partial<MessagingSettings>;
-  return { ...DEFAULT_SETTINGS, announceSignups: item.announceSignups ?? DEFAULT_SETTINGS.announceSignups };
-}
-
-export async function saveSettings(settings: MessagingSettings): Promise<MessagingSettings> {
-  await docClient.send(
-    new PutCommand({
-      TableName: BROADCASTS_TABLE,
-      Item: { broadcastId: SETTINGS_ID, ...settings, updatedAt: new Date().toISOString() },
-    })
-  );
-  return settings;
 }
 
 // ---------- Attachments ----------

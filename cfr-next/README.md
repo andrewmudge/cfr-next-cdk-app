@@ -38,7 +38,7 @@ CFR Next is a cloud-native application that powers private family content access
 - 🛂 **Email-based Access Control** (via DynamoDB whitelist)
 - 📸 **Photo Upload and Browsing** (S3 + Lambda)
 - 📤 **Admin Tools for User Management** (Lambda)
-- 📬 **Family email via SES**: master mailing list, admin compose with attachments, sign-up confirmations and announcements (Lambda)
+- 📬 **Family email via SES**: master mailing list, admin compose with attachments, sign-up confirmations (Lambda)
 - 🏗️ **Infrastructure as Code (CDK)**
 
 ---
@@ -70,7 +70,7 @@ Directory Structure:
 | **Lambda**  | Business logic: upload photos, delete photos, tigger ses, list users, etc. |
 | **DynamoDB**| Stores list of approved user emails |
 | **S3**      | Stores user-uploaded images |
-| **SES**     | Family-wide emails, sign-up confirmations and announcements (see [Email](#-email-ses)) |
+| **SES**     | Family-wide emails and sign-up confirmations (see [Email](#-email-ses)) |
 
 ---
 
@@ -100,7 +100,7 @@ Secrets like AWS credentials should be handled via environment variables or secr
 **How it works**
 - `MailingList` (DynamoDB) is the master email list and the source of truth. Manage it in the admin console under **Family Email → Mailing list**. *Sync from site data* pulls in family-tree, sign-up and account emails. *Import Google Group CSV* reads a Google Groups member export. Neither one re-subscribes anyone who unsubscribed, bounced or complained.
 - **Family Email → Compose** queues a job on the `Broadcasts` table, and the app invokes the `SendBroadcastFn` Lambda (`lambda-functions/send-broadcast.js`) asynchronously. The Lambda sends each recipient their own copy with an unsubscribe link, then writes progress back to the row, which the **Sent** tab shows. Attachments go from the browser straight to S3 (`email-attachments/`, deleted after 30 days) through presigned URLs.
-- Each successful sign-up (`POST /api/registrations`) queues a `signup` job. The new family gets a confirmation, and every other family registered that year gets an announcement, which you can switch off under **Settings**.
+- Each successful sign-up (`POST /api/registrations`) queues a `signup` job that emails the new family a confirmation. Nobody else is emailed.
 - SES bounce and complaint events go through EventBridge to `EmailEventsFn` (`lambda-functions/email-events.js`), which marks the address on the list. Unsubscribe links go to `/api/unsubscribe`, which also supports Gmail/Yahoo one-click.
 - Mail is sent From `reunion@churchwellreunion.com` with Reply-To set to the admin Gmail. The domain has no mailbox.
 

@@ -4,9 +4,14 @@ import { docClient } from '@/lib/reunion-db';
 
 export const MAILING_LIST_TABLE = process.env.MAILING_LIST_TABLE || 'MailingList';
 
-export type MemberSource = 'family' | 'registration' | 'account' | 'google-group' | 'manual';
-export type MemberStatus = 'subscribed' | 'unsubscribed' | 'bounced' | 'complained';
-export const MEMBER_STATUSES: MemberStatus[] = ['subscribed', 'unsubscribed', 'bounced', 'complained'];
+export type MemberSource = 'family' | 'registration' | 'account' | 'google-group' | 'import' | 'manual';
+/**
+ * subscribed = active list (gets emails). archived = kept on file but never emailed
+ * (e.g. people who used to come); the admin can restore them. The rest are opt-outs
+ * and delivery failures.
+ */
+export type MemberStatus = 'subscribed' | 'archived' | 'unsubscribed' | 'bounced' | 'complained';
+export const MEMBER_STATUSES: MemberStatus[] = ['subscribed', 'archived', 'unsubscribed', 'bounced', 'complained'];
 
 /** One address on the master email list (the source of truth for family-wide emails). */
 export interface MailingListMember {
@@ -55,7 +60,9 @@ export interface UpsertInput {
  */
 export async function upsertMembers(
   entries: UpsertInput[],
-  source: MemberSource
+  source: MemberSource,
+  /** Status for addresses not already on the list (existing rows keep theirs). */
+  newStatus: 'subscribed' | 'archived' = 'subscribed'
 ): Promise<{ added: number; updated: number; skipped: number }> {
   const byEmail = new Map<string, UpsertInput>();
   let skipped = 0;
@@ -82,7 +89,7 @@ export async function upsertMembers(
         name: e.name || undefined,
         personId: e.personId || undefined,
         sources: [source],
-        status: 'subscribed',
+        status: newStatus,
         unsubToken: newToken(),
         addedAt: now,
         updatedAt: now,
@@ -140,7 +147,7 @@ export async function updateMember(
     sets.push('#s = :s', 'statusReason = :r');
     names['#s'] = 'status';
     vals[':s'] = patch.status;
-    vals[':r'] = patch.status === 'subscribed' ? null : 'set by admin';
+    vals[':r'] = patch.status === 'subscribed' ? null : patch.status === 'archived' ? 'archived by admin' : 'set by admin';
   }
   try {
     const out = await docClient.send(

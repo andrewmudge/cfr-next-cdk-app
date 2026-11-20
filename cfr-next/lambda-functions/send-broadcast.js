@@ -4,7 +4,7 @@
 //
 // Job kinds:
 //   email  - admin broadcast (subject/body/attachments) to an audience
-//   signup - confirmation to a new sign-up + announcement to every other family registered that year
+//   signup - confirmation email to the family that just signed up
 
 const { randomBytes } = require('crypto');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
@@ -158,7 +158,7 @@ async function resolveAudience(audience, job) {
   throw new Error(`Unknown audience: ${audience.type}`);
 }
 
-/** Sign-up: confirmation to the new sign-up, announcement to everyone else registered this year. */
+/** Sign-up: a confirmation to the family that just signed up (nobody else is emailed). */
 async function buildSignupMessages(job) {
   const year = String(job.year);
   const sub = await getSubmission(year, job.submissionId);
@@ -171,30 +171,17 @@ async function buildSignupMessages(job) {
       ExpressionAttributeValues: { ':n': sub.submitterName || '' },
     })
   );
-  const allSubs = await listSubmissions(year);
-  const settings = await getSettings();
   const label = job.reunionLabel || `${year} Churchwell Family Reunion`;
-  const families = allSubs.length;
-  const people = allSubs.reduce((n, s) => n + ((s.attendees && s.attendees.length) || 0), 0);
   const messages = [];
 
   const newEmail = sub.email ? sub.email.toLowerCase() : '';
   if (newEmail) {
-    const row = await ensureMember(newEmail, { source: 'registration', name: sub.submitterName, personId: sub.submitterPersonId });
+    let row = await ensureMember(newEmail, { source: 'registration', name: sub.submitterName, personId: sub.submitterPersonId });
+    // Someone on the archive list (used to come) just signed up again: back to the active list.
+    if (row.status === 'archived') row = await reactivate(row);
     // A confirmation is transactional: send it unless the address bounced or complained.
     if (row.status !== 'bounced' && row.status !== 'complained') {
       messages.push(confirmationMessage(sub, label, row.unsubToken));
-    }
-  }
-
-  if (settings.announceSignups !== false) {
-    const others = uniqueEmails(allSubs.filter((s) => s.submissionId !== sub.submissionId).map((s) => s.email)).filter(
-      (e) => e !== newEmail
-    );
-    for (const email of others) {
-      const row = await ensureMember(email, { source: 'registration' });
-      if (row.status !== 'subscribed') continue;
-      messages.push(announcementMessage(email, sub, label, families, people, row.unsubToken));
     }
   }
   return messages;
@@ -239,24 +226,6 @@ function confirmationMessage(sub, label, unsubToken) {
     subject: `You're signed up for the ${label}!`,
     html: layout({ inner }),
     text,
-    unsubscribeUrl,
-  };
-}
-
-function announcementMessage(to, sub, label, families, people, unsubToken) {
-  const n = (sub.attendees && sub.attendees.length) || 0;
-  const who = `${sub.submitterName} just signed up ${n === 1 ? '1 person' : `${n} people`}`;
-  const so = `That makes ${families} ${families === 1 ? 'family' : 'families'} and ${people} ${people === 1 ? 'person' : 'people'} coming so far.`;
-  const inner = `
-    <p style="font-size:18px"><strong>${esc(who)}</strong> for the ${esc(label)}!</p>
-    <p>${esc(so)}</p>
-    <p>Haven't signed everyone up yet? <a href="${SITE_URL}/#register">Sign up on the site</a>.</p>`;
-  const unsubscribeUrl = unsubToken ? `${SITE_URL}/api/unsubscribe?t=${unsubToken}` : null;
-  return {
-    to,
-    subject: `${sub.submitterName} is coming to the reunion!`,
-    html: layout({ inner }),
-    text: `${who} for the ${label}!\n\n${so}\n\nSign up: ${SITE_URL}/#register`,
     unsubscribeUrl,
   };
 }
@@ -345,6 +314,24 @@ async function ensureMember(email, { source, name, personId } = {}) {
   }
 }
 
+async function reactivate(row) {
+  const out = await ddb.send(
+    new UpdateCommand({
+      TableName: MAILING_LIST_TABLE,
+      Key: { email: row.email },
+      UpdateExpression: 'SET #s = :sub, statusReason = :r, updatedAt = :now',
+      ConditionExpression: '#s = :arch',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':sub': 'subscribed', ':arch': 'archived', ':r': 'signed up again', ':now': new Date().toISOString() },
+      ReturnValues: 'ALL_NEW',
+    })
+  ).catch((err) => {
+    if (err.name === 'ConditionalCheckFailedException') return { Attributes: row };
+    throw err;
+  });
+  return out.Attributes || row;
+}
+
 async function scanMembers() {
   const items = [];
   let ExclusiveStartKey;
@@ -378,11 +365,6 @@ async function listSubmissions(year) {
 async function getSubmission(year, submissionId) {
   const out = await ddb.send(new GetCommand({ TableName: REG_TABLE, Key: { year, sk: `SUBMISSION#${submissionId}` } }));
   return out.Item || null;
-}
-
-async function getSettings() {
-  const out = await ddb.send(new GetCommand({ TableName: BROADCASTS_TABLE, Key: { broadcastId: 'settings' } }));
-  return out.Item || {};
 }
 
 async function saveProgress(broadcastId, tally, status) {
