@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ArrowDown, ArrowUp, Check, EyeOff, ExternalLink, FileText, Loader2, Newspaper, RefreshCw, Send, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 
 // ---------- Types (mirror lib/chronicle/*) ----------
 
@@ -83,6 +84,33 @@ export default function Chronicle() {
   const [loading, setLoading] = useState(true);
   const [intro, setIntro] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  /** Public submissions on/off (null while loading). Stored in lib/site-settings.ts. */
+  const [open, setOpen] = useState<boolean | null>(null);
+  const [savingOpen, setSavingOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/site-settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setOpen(d.chronicleOpen !== false))
+      .catch(() => setOpen(null));
+  }, []);
+
+  const toggleOpen = async (next: boolean) => {
+    const msg = next
+      ? 'Turn Chronicle submissions on? The form and the home-page link will be visible again.'
+      : 'Turn Chronicle submissions off? The home-page link will be hidden, /chronicle will say it is closed, and new updates will be refused.';
+    if (!window.confirm(msg)) return;
+    setSavingOpen(true);
+    try {
+      const d = await api('/api/admin/site-settings', 'PUT', { chronicleOpen: next });
+      setOpen(d.chronicleOpen);
+      toast.success(d.chronicleOpen ? 'Chronicle submissions are on.' : 'Chronicle submissions are off.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingOpen(false);
+    }
+  };
 
   const load = useCallback(async (id: string | null) => {
     setLoading(true);
@@ -158,7 +186,18 @@ export default function Chronicle() {
           <Newspaper className="w-6 h-6 text-red-400" />
           <h2 className="text-xl font-bold text-white">The Churchwell Chronicle</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-200">
+            <Switch
+              checked={!!open}
+              disabled={open === null || savingOpen}
+              onCheckedChange={toggleOpen}
+              aria-label="Chronicle submissions on or off"
+              className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-slate-600"
+            />
+            {open === null ? 'Submissions…' : open ? 'Submissions on' : 'Submissions off'}
+            {savingOpen && <Loader2 className="w-4 h-4 animate-spin" />}
+          </label>
           <select
             value={issueId ?? ''}
             onChange={(e) => load(e.target.value)}

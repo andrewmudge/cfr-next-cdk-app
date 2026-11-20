@@ -5,6 +5,7 @@ import { titleCase } from '@/lib/reunion-config';
 import { MAX_CONTENT_CHARS, MAX_PHOTOS, currentIssueId, issueInfo, isIssueId, nextIssueId } from '@/lib/chronicle/issues';
 import { createEntry } from '@/lib/chronicle/db';
 import { photoExists, photoPrefix } from '@/lib/chronicle/storage';
+import { getSiteSettings } from '@/lib/site-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,9 @@ const schema = z.object({
 
 /** Public: add an update to the next Churchwell Chronicle. */
 export async function POST(req: NextRequest) {
+  if (!(await getSiteSettings()).chronicleOpen) {
+    return NextResponse.json({ error: 'The Chronicle is not taking updates right now.' }, { status: 403 });
+  }
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request.' }, { status: 400 });

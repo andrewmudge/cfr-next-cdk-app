@@ -4,6 +4,7 @@ import { ArrowLeft, FileText } from 'lucide-react';
 import ChronicleForm from '@/components/chronicle/ChronicleForm';
 import { CHRONICLE_NAME, currentIssue, issueInfo } from '@/lib/chronicle/issues';
 import { listPublishedIssues } from '@/lib/chronicle/db';
+import { getSiteSettings } from '@/lib/site-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,10 @@ export default async function ChroniclePage() {
   } catch (err) {
     console.error('Chronicle: could not list past issues', err);
   }
+  // Admin switch (Chronicle panel). If the check fails, stay open: the API still refuses when closed.
+  const open = await getSiteSettings()
+    .then((s) => s.chronicleOpen)
+    .catch(() => true);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
@@ -33,13 +38,21 @@ export default async function ChroniclePage() {
         <header className="mt-6 mb-8 text-center">
           <h1 className="font-serif text-4xl sm:text-5xl font-bold text-white leading-tight">{CHRONICLE_NAME}</h1>
           <div className="mx-auto my-4 h-1 w-24 rounded bg-red-600" />
-          <p className="text-lg text-slate-300">
-            What&apos;s happened since the last one? Share your news and photos for the <strong className="text-white">{issue.label}</strong> edition,
-            out {issue.dateLabel}.
-          </p>
+          {open && (
+            <p className="text-lg text-slate-300">
+              What&apos;s happened since the last one? Share your news and photos for the <strong className="text-white">{issue.label}</strong> edition,
+              out {issue.dateLabel}.
+            </p>
+          )}
         </header>
 
-        <ChronicleForm issue={issue} />
+        {open ? (
+          <ChronicleForm issue={issue} />
+        ) : (
+          <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-lg text-center">
+            <p className="text-lg text-slate-700">The Chronicle isn&apos;t taking updates right now. Check back soon!</p>
+          </div>
+        )}
 
         {past.length > 0 && (
           <section className="mt-12">

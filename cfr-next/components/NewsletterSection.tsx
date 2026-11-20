@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useChronicleOpen } from '@/hooks/use-chronicle-open';
 
 const flyerImages = [
   '/26-cfr-flyer-1.png',
@@ -65,6 +66,8 @@ const Carousel: React.FC = () => {
 };
 
 const NewsletterSection = () => {
+  // Admin switch (Chronicle panel): hide the card when the Chronicle isn't taking updates.
+  const chronicleOpen = useChronicleOpen();
   return (
     <section id="newsletter" className="py-20 bg-gradient-to-b from-white to-slate-50">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -85,6 +88,7 @@ const NewsletterSection = () => {
           </a>
         </div>
         {/* The Churchwell Chronicle: twice-yearly family news (Jan 15 / May 15) */}
+        {chronicleOpen && (
         <div className="mt-12 rounded-2xl border-2 border-red-200 bg-white p-6 text-center shadow-sm">
           <h3 className="font-serif text-2xl md:text-3xl font-bold text-slate-800">The Churchwell Chronicle</h3>
           <p className="mt-2 text-slate-600">
@@ -97,6 +101,7 @@ const NewsletterSection = () => {
             Share your update
           </Link>
         </div>
+        )}
       </div>
     </section>
   );
