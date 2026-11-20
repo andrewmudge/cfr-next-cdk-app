@@ -45,27 +45,44 @@ export default function AgeGroupPicker({ ageGroup, adultRate, onChange }: Props)
       </div>
 
       {ageGroup === 'adult' && (
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Adult rate">
-          {ADULT_RATES.map((r) => {
-            const on = (adultRate ?? 'full') === r.id;
-            return (
-              <button
-                key={r.id}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => onChange('adult', r.id)}
-                className={cn(
-                  'min-h-[40px] rounded-full border-2 px-3 text-sm font-medium transition-colors',
-                  on
-                    ? 'border-slate-700 bg-slate-700 text-white'
-                    : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                )}
-              >
-                {r.label} · {formatDollars(r.duesCents)}
-              </button>
-            );
-          })}
+        <div className="space-y-2">
+          <p className="font-medium text-slate-700">
+            Attendance Option <span className="text-red-600">*</span>
+          </p>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Attendance option">
+            {ADULT_RATES.map((r) => {
+              const on = (adultRate ?? 'full') === r.id;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => onChange('adult', r.id)}
+                  className={cn(
+                    'flex min-h-[48px] w-full items-center gap-2 rounded-xl border-2 px-3 text-sm transition-colors sm:w-auto',
+                    on
+                      ? 'border-red-500 bg-red-50 font-semibold text-slate-900'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  )}
+                >
+                  {/* Radio circle */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2',
+                      on ? 'border-red-600 bg-red-600' : 'border-slate-400 bg-white'
+                    )}
+                  >
+                    {on && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span>
+                    {r.label} · <span className={cn(on && 'underline underline-offset-2')}>{formatDollars(r.duesCents)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
