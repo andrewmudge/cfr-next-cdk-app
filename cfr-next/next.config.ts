@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The Chronicle PDF renderer runs in Node route handlers; don't bundle it.
+  serverExternalPackages: ['@react-pdf/renderer'],
 };
 
 export default nextConfig;

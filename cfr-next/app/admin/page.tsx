@@ -11,6 +11,7 @@ import UserEditor from '@/components/admin/UserEditor';
 import ManagePhotos from '@/components/admin/ManagePhotos';
 import Registrations from '@/components/admin/Registrations';
 import Messaging from '@/components/admin/Messaging';
+import Chronicle from '@/components/admin/Chronicle';
 import { getAllUsers } from '@/lib/user-status';
 
 // Helper to fetch photo count from Lambda
@@ -186,6 +187,11 @@ export default function AdminDashboard() {
         {/* Reunion sign-ups */}
         <div className="mt-8">
           <Registrations />
+        </div>
+
+        {/* Churchwell Chronicle newsletter */}
+        <div className="mt-8">
+          <Chronicle />
         </div>
 
         {/* Family email (SES) */}

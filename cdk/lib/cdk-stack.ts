@@ -18,10 +18,11 @@ export class CfrNextStack extends Stack {
 
     // S3 Bucket
     const bucket = new s3.Bucket(this, 'CfrPhotoBucket', {
-      // The admin console uploads email attachments straight from the browser (presigned PUT).
+      // The admin console uploads email attachments straight from the browser (presigned PUT);
+      // the Churchwell Chronicle form uploads photos the same way (presigned POST, size-capped).
       cors: [
         {
-          allowedMethods: [s3.HttpMethods.PUT],
+          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
           allowedOrigins: [
             'https://churchwellreunion.com',
             'https://www.churchwellreunion.com',
@@ -46,6 +47,8 @@ export class CfrNextStack extends Stack {
       actions: ['s3:GetObject'],
       resources: [
         bucket.arnForObjects('public/photos/*'),
+        // Finalized Churchwell Chronicle PDFs (photos under chronicle/ stay private).
+        bucket.arnForObjects('public/chronicle/*'),
       ],
     }));
 
@@ -79,6 +82,16 @@ export class CfrNextStack extends Stack {
       tableName: 'ReunionRegistrations',
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    // DynamoDB Table: Churchwell Chronicle newsletter (issueId + ENTRY#… / META)
+    const chronicleTable = new dynamodb.Table(this, 'ChronicleEntries', {
+      partitionKey: { name: 'issueId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
+      tableName: 'ChronicleEntries',
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     // ---------- Email (SES) ----------
@@ -316,6 +329,10 @@ export class CfrNextStack extends Stack {
     mailingListTable.grantReadWriteData(cfrDevUser);
     broadcastsTable.grantReadWriteData(cfrDevUser);
     bucket.grantPut(cfrDevUser, 'email-attachments/*');
+    // ...and to the Churchwell Chronicle: entries, uploaded photos and finalized PDFs.
+    chronicleTable.grantReadWriteData(cfrDevUser);
+    bucket.grantReadWrite(cfrDevUser, 'chronicle/*');
+    bucket.grantReadWrite(cfrDevUser, 'public/chronicle/*');
     sendBroadcastFn.grantInvoke(cfrDevUser);
 
     // App Runner Service (placeholder image initially)

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const flyerImages = [
   '/26-cfr-flyer-1.png',
@@ -82,6 +83,19 @@ const NewsletterSection = () => {
           >
             Download Newsletter
           </a>
+        </div>
+        {/* The Churchwell Chronicle: twice-yearly family news (Jan 15 / May 15) */}
+        <div className="mt-12 rounded-2xl border-2 border-red-200 bg-white p-6 text-center shadow-sm">
+          <h3 className="font-serif text-2xl md:text-3xl font-bold text-slate-800">The Churchwell Chronicle</h3>
+          <p className="mt-2 text-slate-600">
+            Family news twice a year, in January and May. Share what&apos;s new with you, photos included.
+          </p>
+          <Link
+            href="/chronicle"
+            className="mt-4 inline-flex min-h-[48px] items-center px-6 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition-colors"
+          >
+            Share your update
+          </Link>
         </div>
       </div>
     </section>
