@@ -31,7 +31,8 @@ export default function ManagePhotos() {
   // Fetch photos for selected year/folder
   useEffect(() => {
     setLoading(true);
-    let url = process.env.NEXT_PUBLIC_LIST_LAMBDA_URL!;
+    // Through the site's photo route (the Lambda has no public URL).
+    let url = '/api/photos/list';
     if (year !== 'all') {
       url += `?year=${year === 'Oldies' ? 'Nan' : year}`;
     }

@@ -325,6 +325,17 @@ export class CfrNextStack extends Stack {
     const cfrDevUser = iam.User.fromUserName(this, 'CfrDevUser', 'cfr-dev');
     familyMembersTable.grantReadWriteData(cfrDevUser);
     registrationsTable.grantReadWriteData(cfrDevUser);
+    // The site's server calls these Lambdas directly with the cfr-dev keys (no public URLs).
+    // A separate managed policy: cfr-dev's inline policy is at IAM's 2 KB size limit.
+    new iam.ManagedPolicy(this, 'CfrDevInvokeSiteLambdas', {
+      users: [cfrDevUser],
+      statements: [
+        new iam.PolicyStatement({
+          actions: ['lambda:InvokeFunction'],
+          resources: [listPhotosFn, deletePhotosFn, listCognitoUsersFn, uploadPhotosFn].map((fn) => fn.functionArn),
+        }),
+      ],
+    });
     // ...and to the email list, send history, attachment uploads and queueing sends.
     mailingListTable.grantReadWriteData(cfrDevUser);
     broadcastsTable.grantReadWriteData(cfrDevUser);

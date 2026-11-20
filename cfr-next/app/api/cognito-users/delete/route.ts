@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
+import { invokeLambda, SITE_LAMBDAS } from '@/lib/lambda-invoke';
 
 export async function DELETE(request: NextRequest) {
   // Admin only (see lib/admin-emails.ts).
@@ -18,43 +19,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const lambdaUrl = process.env.NEXT_PUBLIC_COGNITO_ADMIN_URL || process.env.COGNITO_ADMIN_URL;
-    
-    if (!lambdaUrl) {
-      console.error('Lambda URL not configured');
-      return NextResponse.json(
-        { error: 'Lambda URL not configured' },
-        { status: 500 }
-      );
-    }
-
-    console.log('Calling Lambda function to delete user...');
-    const response = await fetch(lambdaUrl, {
+    // Call the Cognito-users Lambda directly (it has no public URL).
+    const response = await invokeLambda(SITE_LAMBDAS.cognitoUsers, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: 'deleteUser',
-        username: username
-      }),
+      body: { action: 'deleteUser', username },
     });
-
-    console.log('Lambda response status:', response.status);
-    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Lambda error response:', errorText);
-      return NextResponse.json(
-        { error: `Lambda function returned ${response.status}: ${errorText}` },
-        { status: response.status }
-      );
+      console.error('Delete-user Lambda returned', response.status, response.data);
+      return NextResponse.json({ error: `Lambda function returned ${response.status}` }, { status: response.status });
     }
-
-    const result = await response.json();
-    console.log('Lambda delete result:', result);
-    
-    return NextResponse.json(result);
+    return NextResponse.json(response.data);
   } catch (error) {
     console.error('=== Delete User API Route Error ===');
     console.error('Error deleting user:', error);

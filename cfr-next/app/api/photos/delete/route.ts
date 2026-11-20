@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
+import { invokeLambda, SITE_LAMBDAS } from '@/lib/lambda-invoke';
 
 export async function POST(request: NextRequest) {
   // Admin only (see lib/admin-emails.ts).
@@ -10,17 +11,9 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(keys) || keys.length === 0) {
       return NextResponse.json({ error: 'No photo keys provided' }, { status: 400 });
     }
-    // Call Lambda to delete photos
-    const lambdaUrl = process.env.NEXT_PUBLIC_DELETE_PHOTOS_LAMBDA_URL || process.env.DELETE_PHOTOS_LAMBDA_URL;
-    if (!lambdaUrl) {
-      return NextResponse.json({ error: 'Delete Lambda URL not configured' }, { status: 500 });
-    }
-    const res = await fetch(lambdaUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keys })
-    });
-    const result = await res.json();
+    // Call the delete Lambda directly (it has no public URL).
+    const res = await invokeLambda(SITE_LAMBDAS.deletePhotos, { method: 'POST', body: { keys } });
+    const result = (res.data ?? {}) as { error?: string };
     if (!res.ok) {
       return NextResponse.json({ error: result.error || 'Delete failed' }, { status: res.status });
     }

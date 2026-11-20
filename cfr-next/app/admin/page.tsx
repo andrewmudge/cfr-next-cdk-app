@@ -15,12 +15,10 @@ import Chronicle from '@/components/admin/Chronicle';
 import { getAllUsers } from '@/lib/user-status';
 import { isAdminEmail } from '@/lib/admin-emails';
 
-// Helper to fetch photo count from Lambda
+// Helper to fetch photo count (through the site's photo route; the Lambda has no public URL)
 const getPhotoCount = async (): Promise<number | null> => {
   try {
-    const lambdaUrl = process.env.NEXT_PUBLIC_LIST_LAMBDA_URL;
-    if (!lambdaUrl) return null;
-    const response = await fetch(lambdaUrl);
+    const response = await fetch('/api/photos/list');
     if (!response.ok) return null;
     const data = await response.json();
     // Assume photos are returned as an array in data.photos

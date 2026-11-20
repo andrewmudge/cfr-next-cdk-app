@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { invokeLambda, SITE_LAMBDAS } from '@/lib/lambda-invoke';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,23 +12,14 @@ export async function POST(request: NextRequest) {
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    // Call Lambda function
-    const lambdaUrl = process.env.NEXT_PUBLIC_UPLOAD_PHOTOS_LAMBDA_URL || process.env.UPLOAD_PHOTOS_LAMBDA_URL;
-    if (!lambdaUrl) {
-      return NextResponse.json({ error: 'Upload Lambda URL not configured' }, { status: 500 });
-    }
-    const lambdaResponse = await fetch(lambdaUrl, {
+    // Call the upload Lambda directly (it has no public URL).
+    const res = await invokeLambda(SITE_LAMBDAS.uploadPhotos, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        file: buffer.toString('base64'),
-        filename: (file as File).name,
-        year
-      }),
+      body: { file: buffer.toString('base64'), filename: (file as File).name, year },
     });
-    const result = await lambdaResponse.json();
-    if (!lambdaResponse.ok) {
-      return NextResponse.json({ error: result.error || 'Upload failed' }, { status: lambdaResponse.status });
+    const result = (res.data ?? {}) as { error?: string };
+    if (!res.ok) {
+      return NextResponse.json({ error: result.error || 'Upload failed' }, { status: res.status });
     }
     return NextResponse.json(result);
   } catch (error) {

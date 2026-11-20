@@ -1,62 +1,26 @@
 import { NextResponse } from 'next/server';
 import { checkUserApproval } from '@/lib/approved-users';
 import { requireAdmin } from '@/lib/admin-auth';
+import { invokeLambda, SITE_LAMBDAS } from '@/lib/lambda-invoke';
 
 
 // Function to call the Lambda function
 async function getCognitoUsers() {
-  // In server-side API routes, NEXT_PUBLIC_ vars are available, but let's also check regular env vars
-  const lambdaUrl = process.env.NEXT_PUBLIC_COGNITO_ADMIN_URL || process.env.COGNITO_ADMIN_URL;
-  
-  console.log('Lambda URL:', lambdaUrl);
-  console.log('Environment check:', {
-    NEXT_PUBLIC_COGNITO_ADMIN_URL: process.env.NEXT_PUBLIC_COGNITO_ADMIN_URL,
-    COGNITO_ADMIN_URL: process.env.COGNITO_ADMIN_URL,
-    NODE_ENV: process.env.NODE_ENV
-  });
-  
-  if (!lambdaUrl) {
-    console.error('Lambda URL not configured');
-    throw new Error('Lambda URL not configured');
-  }
-
   try {
-    console.log('Calling Lambda function...');
-    const response = await fetch(lambdaUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-      },
-      body: JSON.stringify({
-        action: 'listUsers'
-      }),
-    });
-
-    console.log('Lambda response status:', response.status);
-    console.log('Lambda response headers:', Object.fromEntries(response.headers.entries()));
-    
+    // Call the Cognito-users Lambda directly (it has no public URL).
+    const response = await invokeLambda(SITE_LAMBDAS.cognitoUsers, { method: 'POST', body: { action: 'listUsers' } });
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Lambda error response:', errorText);
-      throw new Error(`Lambda function returned ${response.status}: ${errorText}`);
+      console.error('Cognito-users Lambda returned', response.status);
+      throw new Error(`Lambda function returned ${response.status}`);
     }
-
-    const responseText = await response.text();
-    console.log('Lambda raw response:', responseText);
-    
-    const result = JSON.parse(responseText);
-    console.log('Lambda parsed result:', result);
+    const result = response.data as { users?: { userCreateDate: string; email: string; [key: string]: unknown }[] };
     
     if (!result.users) {
-      console.error('No users property in response:', result);
+      console.error('No users property in Lambda response');
       throw new Error('Invalid response format from Lambda function');
     }
     
-    return result.users.map((user: {
-      userCreateDate: string;
-      [key: string]: unknown;
-    }) => ({
+    return result.users.map((user) => ({
       ...user,
       userCreateDate: new Date(user.userCreateDate)
     }));

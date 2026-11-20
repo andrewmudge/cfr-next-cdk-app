@@ -11,31 +11,17 @@ export interface CognitoUserDetails {
   enabled: boolean;
 }
 
-// Get Lambda function URL from environment
-const getCognitoAdminUrl = () => process.env.NEXT_PUBLIC_COGNITO_ADMIN_URL;
-
+// Goes through the site's admin-only API route (the Lambda has no public URL).
 export const listAllCognitoUsers = async (): Promise<CognitoUserDetails[]> => {
-  const lambdaUrl = getCognitoAdminUrl();
-  if (!lambdaUrl) {
-    // Fallback to mock data if Lambda URL not configured
-    console.log('Lambda URL not configured, using mock data');
-    return getMockUsers();
-  }
-
   try {
-    const response = await fetch(lambdaUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
+    const response = await fetch('/api/cognito-users', { cache: 'no-store' });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data.users.map((user: CognitoUserDetails) => ({
+    const data = (await response.json()) as CognitoUserDetails[];
+    return data.map((user: CognitoUserDetails) => ({
       ...user,
       userCreateDate: new Date(user.userCreateDate)
     }));
