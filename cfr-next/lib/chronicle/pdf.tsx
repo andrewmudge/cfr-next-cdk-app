@@ -8,8 +8,16 @@ import type { ChronicleEntry, ChronicleMeta } from '@/lib/chronicle/db';
 
 // Built-in PDF fonts can't draw emoji, and family updates are full of them.
 Font.registerEmojiSource({ format: 'png', url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/' });
-// Don't hyphenate names or words mid-line.
-Font.registerHyphenationCallback((word) => [word]);
+// Don't hyphenate normal words or names, but let very long runs (URLs, "kdddddd…")
+// break into chunks so they wrap instead of running off the page.
+const LONG_WORD = 18;
+const CHUNK = 12;
+Font.registerHyphenationCallback((word) => {
+  if (word.length <= LONG_WORD) return [word];
+  const parts: string[] = [];
+  for (let i = 0; i < word.length; i += CHUNK) parts.push(word.slice(i, i + CHUNK));
+  return parts;
+});
 
 // The site's round seal (header/footer). Shipped with the PDF routes via
 // outputFileTracingIncludes in next.config.ts. Missing file = no logo, not an error.
@@ -34,9 +42,10 @@ const PAGE_W = 612; // US Letter, points
 const MARGIN = 54;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 const GAP = 10;
-const HALF_W = (CONTENT_W - GAP) / 2;
-const SINGLE_MAX_H = 400;
-const GRID_H = 190;
+// Photos sit in a 3-column grid of 4:3 cells (cropped to fill).
+const COLS = 3;
+const CELL_W = (CONTENT_W - GAP * (COLS - 1)) / COLS;
+const CELL_H = CELL_W * 0.75;
 
 const s = StyleSheet.create({
   page: { paddingTop: MARGIN, paddingBottom: MARGIN + 18, paddingHorizontal: MARGIN, fontFamily: 'Helvetica', fontSize: 11.5, color: INK, lineHeight: 1.45 },
@@ -52,8 +61,8 @@ const s = StyleSheet.create({
   name: { fontFamily: 'Times-Bold', fontSize: 20, color: RED, marginBottom: 4 },
   content: { fontSize: 11.5 },
   photos: { marginTop: 10 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: GAP },
-  half: { width: HALF_W, height: GRID_H, objectFit: 'cover', borderRadius: 3 },
+  row: { flexDirection: 'row', marginBottom: GAP },
+  cell: { width: CELL_W, height: CELL_H, objectFit: 'cover', borderRadius: 3 },
   divider: { height: 1, backgroundColor: '#e2e8f0', marginTop: 4 },
   footer: { position: 'absolute', bottom: MARGIN / 2, left: MARGIN, right: MARGIN, flexDirection: 'row', justifyContent: 'space-between', fontSize: 9, color: MUTED },
   empty: { fontFamily: 'Times-Italic', fontSize: 14, textAlign: 'center', color: MUTED, marginTop: 120 },
@@ -66,26 +75,16 @@ const src = (p: LoadedPhoto) => ({ data: p.data, format: 'jpg' as const });
 
 function Photos({ photos }: { photos: LoadedPhoto[] }) {
   if (photos.length === 0) return null;
-  if (photos.length === 1) {
-    const p = photos[0];
-    const ratio = p.width && p.height ? p.height / p.width : 0.75;
-    const h = Math.min(SINGLE_MAX_H, CONTENT_W * ratio);
-    return (
-      <View style={s.photos} wrap={false}>
-        <Image src={src(p)} style={{ width: h / ratio, height: h, alignSelf: 'center', borderRadius: 3 }} />
-      </View>
-    );
-  }
   const rows: LoadedPhoto[][] = [];
-  for (let i = 0; i < photos.length; i += 2) rows.push(photos.slice(i, i + 2));
+  for (let i = 0; i < photos.length; i += COLS) rows.push(photos.slice(i, i + COLS));
   return (
     <View style={s.photos}>
+      {/* A row never splits across pages; a long entry's rows flow onto the next page. */}
       {rows.map((row, i) => (
         <View key={i} style={s.row} wrap={false}>
           {row.map((p, j) => (
-            <Image key={j} src={src(p)} style={s.half} />
+            <Image key={j} src={src(p)} style={[s.cell, { marginRight: j < COLS - 1 ? GAP : 0 }]} />
           ))}
-          {row.length === 1 && <View style={{ width: HALF_W }} />}
         </View>
       ))}
     </View>
