@@ -63,13 +63,14 @@ export function formatReunionDates(year: number, style: 'ordinal' | 'short' | 'l
   return `${md(start, MONTHS, true)} - ${md(end, MONTHS, true)} ${year}`;
 }
 
+// `when` comes from the Schedule section (components/ScheduleSection.tsx); keep them in sync.
 export const ACTIVITIES = [
-  { id: 'cornhole', label: 'Cornhole', emoji: '🌽' },
-  { id: 'golf', label: 'Golf', emoji: '⛳' },
-  { id: 'horseshoes', label: 'Horseshoes', emoji: '🐎' },
-  { id: 'darts', label: 'Darts', emoji: '🎯' },
-  { id: 'poker', label: 'Poker', emoji: '🃏' },
-  { id: 'eggtoss', label: 'Egg Toss', emoji: '🥚' },
+  { id: 'cornhole', label: 'Cornhole', emoji: '🌽', when: 'Fri 11:00 AM' },
+  { id: 'golf', label: 'Golf', emoji: '⛳', when: 'time TBD' },
+  { id: 'horseshoes', label: 'Horseshoes', emoji: '🐎', when: 'Sat 11:00 AM' },
+  { id: 'darts', label: 'Darts', emoji: '🎯', when: 'Sat 12:00 PM' },
+  { id: 'poker', label: 'Poker', emoji: '🃏', when: 'Sun 12:00 PM' },
+  { id: 'eggtoss', label: 'Egg Toss', emoji: '🥚', when: 'Sun 4:00 PM' },
 ] as const;
 
 export type ActivityId = (typeof ACTIVITIES)[number]['id'];

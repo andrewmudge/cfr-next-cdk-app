@@ -47,6 +47,7 @@ export default function ActivityChips({ value, onChange, allowed }: Props) {
               {a.emoji}
             </span>
             {a.label}
+            <span className={cn('ml-1 text-xs font-normal', on ? 'text-red-100' : 'text-slate-400')}>- {a.when}</span>
             {!ok && <span className="ml-1 text-xs">18+</span>}
           </button>
         );
