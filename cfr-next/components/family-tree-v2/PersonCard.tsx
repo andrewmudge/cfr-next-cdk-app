@@ -1,6 +1,5 @@
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FamilyGraph } from '@/lib/family-tree/graph';
 
@@ -57,13 +56,12 @@ interface CardProps {
   focused?: boolean;
   highlighted?: boolean;
   dimmed?: boolean;
-  coming?: boolean;
   /** Shown as someone's friend in this spot. */
   friendTag?: boolean;
   onClick?: () => void;
 }
 
-export default function PersonCard({ g, id, focused, highlighted, dimmed, coming, friendTag, onClick }: CardProps) {
+export default function PersonCard({ g, id, focused, highlighted, dimmed, friendTag, onClick }: CardProps) {
   const p = g.get(id);
   if (!p) return null;
   const years = lifeYears(g, id);
@@ -71,7 +69,7 @@ export default function PersonCard({ g, id, focused, highlighted, dimmed, coming
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${g.name(id)}${p.deceased ? ', in memory' : ''}${coming ? ', coming to the reunion' : ''}`}
+      aria-label={`${g.name(id)}${p.deceased ? ', in memory' : ''}`}
       className={cn(
         'group relative flex h-full w-full items-center gap-2.5 rounded-2xl border bg-white px-3 text-left shadow-sm transition-all',
         'hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-red-200',
@@ -97,9 +95,6 @@ export default function PersonCard({ g, id, focused, highlighted, dimmed, coming
         <span className="absolute -top-2 left-3 rounded-full border border-slate-200 bg-white px-1.5 text-[10px] font-medium text-slate-400">
           friend
         </span>
-      )}
-      {coming && (
-        <CheckCircle2 className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-white text-green-600" aria-hidden />
       )}
     </button>
   );

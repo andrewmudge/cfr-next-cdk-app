@@ -3,7 +3,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { ChevronUp } from 'lucide-react';
 import type { FamilyGraph } from '@/lib/family-tree/graph';
 import { CARD_H, CARD_W, layoutTree } from '@/lib/family-tree/layout';
 import PersonCard from './PersonCard';
@@ -20,19 +19,18 @@ interface Props {
   focusId: string;
   selectedId: string | null;
   highlight: Set<string>;
-  coming: Set<string>;
   onSelect: (id: string) => void;
-  onFocus: (id: string) => void;
 }
 
 const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
-  { g, focusId, selectedId, highlight, coming, onSelect, onFocus },
+  { g, focusId, selectedId, highlight, onSelect },
   ref
 ) {
   const zoomRef = useRef<ReactZoomPanPinchRef>(null);
   const [ready, setReady] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
-  const layout = useMemo(() => layoutTree(g, focusId), [g, focusId]);
+  // The whole family is always drawn; focusing someone only moves the view.
+  const layout = useMemo(() => layoutTree(g), [g]);
   const pos = useMemo(() => new Map(layout.cards.map((c) => [c.id, c])), [layout]);
 
   const centerOn = useCallback(
@@ -122,7 +120,7 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
                     key={l.key}
                     d={l.d}
                     fill="none"
-                    stroke={on ? '#ef4444' : l.friend ? '#e2e8f0' : l.couple ? '#cbd5e1' : '#94a3b8'}
+                    stroke={on ? '#ef4444' : l.friend ? '#e2e8f0' : l.cross ? '#cbd5e1' : l.couple ? '#cbd5e1' : '#94a3b8'}
                     strokeWidth={on ? 3.5 : l.couple ? 2 : 1.75}
                     strokeDasharray={l.friend ? '1 5' : l.couple ? '4 4' : undefined}
                     strokeLinecap="round"
@@ -145,23 +143,12 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 30 }}
                 >
-                  {c.moreAbove && (
-                    <button
-                      type="button"
-                      onClick={() => onFocus(c.id === g.rootId ? g.parentsOf(c.id)[0] : c.id)}
-                      className="ft-nopan absolute -top-7 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-500 shadow-sm hover:text-slate-800"
-                      aria-label={`Show ${g.name(c.id)}'s parents`}
-                    >
-                      <ChevronUp className="h-3 w-3" /> parents
-                    </button>
-                  )}
                   <PersonCard
                     g={g}
                     id={c.id}
                     focused={c.id === focusId}
                     highlighted={highlight.has(c.id) || c.id === selectedId}
                     dimmed={hasHighlight && !highlight.has(c.id)}
-                    coming={coming.has(c.id)}
                     friendTag={c.asFriend}
                     onClick={() => onSelect(c.id)}
                   />

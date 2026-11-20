@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeftRight, CheckCircle2, Crosshair, GitBranch, Pencil, Plus, Star, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeftRight, Crosshair, GitBranch, Pencil, Plus, Star, Trash2, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { FamilyGraph } from '@/lib/family-tree/graph';
 import type { PublicPerson } from '@/lib/reunion-config';
@@ -13,7 +13,6 @@ import { treeApi } from './treeApi';
 interface Props {
   g: FamilyGraph;
   id: string;
-  coming: boolean;
   isAdmin: boolean;
   /** Everyone who can be linked (tree + sign-up names), for the admin "add" dialog. */
   people: PublicPerson[];
@@ -72,7 +71,7 @@ function Chips({
 }
 
 export default function PersonPanel(props: Props) {
-  const { g, id, coming, isAdmin, people, onClose, onPick, onCenter, onRelate, onShowLine, onChanged } = props;
+  const { g, id, isAdmin, people, onClose, onPick, onCenter, onRelate, onShowLine, onChanged } = props;
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState<Relation | null>(null);
   const p = g.get(id);
@@ -179,11 +178,6 @@ export default function PersonPanel(props: Props) {
           </span>
         ) : (
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Family by marriage</span>
-        )}
-        {coming && (
-          <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Coming in 2027
-          </span>
         )}
       </div>
 

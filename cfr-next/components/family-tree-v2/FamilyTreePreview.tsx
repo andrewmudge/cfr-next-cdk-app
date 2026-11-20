@@ -1,26 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Home, Loader2, Maximize2, Minimize2, Minus, Plus, ScanSearch, Sparkles } from 'lucide-react';
+import { Home, Loader2, Maximize2, Minimize2, Minus, Plus, ScanSearch, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FamilyGraph } from '@/lib/family-tree/graph';
 import { relate, type Relationship } from '@/lib/family-tree/relationship';
 import type { TreeData } from '@/lib/family-tree/types';
-import { REUNION_YEAR, type PublicPerson, type RegisteredPerson } from '@/lib/reunion-config';
+import { type PublicPerson, type RegisteredPerson } from '@/lib/reunion-config';
 import PersonCombobox, { type SelectedPerson } from '@/components/register/PersonCombobox';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { isAdminEmail } from '@/lib/admin-client';
 import TreeCanvas, { type TreeCanvasHandle } from './TreeCanvas';
 import PersonPanel from './PersonPanel';
 import RelationshipFinder from './RelationshipFinder';
-import { BRANCH_COLORS, MARRIED_IN_COLOR, ROOT_COLOR } from './PersonCard';
 
 const noRegistered = new Map<string, RegisteredPerson>();
 
 export default function FamilyTreePreview() {
   const [g, setG] = useState<FamilyGraph | null>(null);
   const [error, setError] = useState(false);
-  const [comingIds, setComingIds] = useState<Set<string>>(new Set());
   const [signupPeople, setSignupPeople] = useState<PublicPerson[]>([]);
   const { user } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
@@ -28,7 +26,6 @@ export default function FamilyTreePreview() {
   const [focusId, setFocusId] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<Set<string>>(new Set());
-  const [showComing, setShowComing] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
 
   const [relOpen, setRelOpen] = useState(false);
@@ -53,8 +50,6 @@ export default function FamilyTreePreview() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
-        // Sign-ups use the same IDs as the tree.
-        setComingIds(new Set((d.registered as RegisteredPerson[]).map((r) => r.personId)));
         setSignupPeople(d.people as PublicPerson[]);
       })
       .catch(() => {});
@@ -102,7 +97,6 @@ export default function FamilyTreePreview() {
     return [...byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [people, signupPeople]);
 
-  const coming = showComing ? comingIds : new Set<string>();
 
   const relation: Relationship | null = useMemo(() => {
     if (!g || relA?.kind !== 'existing' || relB?.kind !== 'existing') return null;
@@ -175,22 +169,6 @@ export default function FamilyTreePreview() {
                     <span className="hidden sm:inline">How are we related?</span>
                   </span>
                 </button>
-                <button
-                  type="button"
-                  aria-pressed={showComing}
-                  onClick={() => setShowComing((s) => !s)}
-                  className={cn(
-                    'flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-sm font-medium sm:flex-none sm:gap-2 sm:px-4',
-                    showComing ? 'border-green-600 bg-green-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
-                  )}
-                >
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>
-                    <span className="sm:hidden">Who&apos;s coming</span>
-                    <span className="hidden sm:inline">Who&apos;s coming in {REUNION_YEAR}</span>
-                  </span>
-                  {comingIds.size > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{comingIds.size}</span>}
-                </button>
               </div>
             </div>
 
@@ -209,22 +187,6 @@ export default function FamilyTreePreview() {
               />
             )}
 
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
-              <button type="button" onClick={() => goTo(g.rootId)} className="flex items-center gap-1.5 hover:text-slate-900">
-                <span className="h-3 w-3 rounded-full" style={{ background: ROOT_COLOR }} /> Patrick &amp; Ollie
-              </button>
-              {g.branchHeads.map((id, i) => (
-                <button key={id} type="button" onClick={() => goTo(id, { select: true })} className="flex items-center gap-1.5 hover:text-slate-900">
-                  <span className="h-3 w-3 rounded-full" style={{ background: BRANCH_COLORS[i % BRANCH_COLORS.length] }} />
-                  {g.get(id)?.given}&apos;s line
-                </button>
-              ))}
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-full" style={{ background: MARRIED_IN_COLOR }} /> Family by marriage
-              </span>
-            </div>
-
             {/* Main view */}
             <div
               className={cn(
@@ -240,9 +202,7 @@ export default function FamilyTreePreview() {
                     focusId={focusId}
                     selectedId={selectedId}
                     highlight={highlight}
-                    coming={coming}
                     onSelect={(id) => setSelectedId(id)}
-                    onFocus={(id) => goTo(id)}
                   />
                   <div className="absolute bottom-3 left-3 flex flex-row gap-1 rounded-2xl border border-slate-200 bg-white/90 p-1 shadow-md backdrop-blur sm:flex-col sm:gap-1.5 sm:p-1.5">
                     {[
@@ -281,7 +241,6 @@ export default function FamilyTreePreview() {
                 <PersonPanel
                   g={g}
                   id={selectedId}
-                  coming={comingIds.has(selectedId)}
                   isAdmin={isAdmin}
                   people={linkablePeople}
                   onChanged={onChanged}

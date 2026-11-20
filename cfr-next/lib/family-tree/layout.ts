@@ -6,6 +6,7 @@ export const CARD_H = 68;
 const PARTNER_GAP = 14;
 const SIBLING_GAP = 20;
 const COUSIN_GAP = 40;
+const TREE_GAP = 140;
 const ROW_H = 150;
 const PAD = 60;
 
@@ -13,8 +14,6 @@ export interface CardPos {
   id: string;
   x: number; // top-left
   y: number;
-  /** Has ancestors above what's drawn (tap to go further up). */
-  moreAbove?: boolean;
   /** Drawn as someone's partner rather than as a blood child in this view. */
   asPartner?: boolean;
   /** Drawn as someone's friend (far side, lighter link). */
@@ -30,6 +29,8 @@ export interface LinkPos {
   couple?: boolean;
   /** Friend connector (lighter). */
   friend?: boolean;
+  /** Long connector between two separately drawn family trees. */
+  cross?: boolean;
 }
 
 export interface TreeLayout {
@@ -37,197 +38,237 @@ export interface TreeLayout {
   links: LinkPos[];
   width: number;
   height: number;
-  anchorId: string;
 }
 
 interface Unit {
   person: string;
-  /** All partners and friends shown with this person. */
-  partners: string[];
-  friends: string[];
   /** Left-to-right card order, e.g. [friend, person, spouse]. */
   order: string[];
+  friends: Set<string>;
   children: Unit[];
 }
 
-const unitWidth = (u: Unit) => (1 + u.partners.length) * CARD_W + u.partners.length * PARTNER_GAP;
+const unitWidth = (u: Unit) => u.order.length * CARD_W + (u.order.length - 1) * PARTNER_GAP;
 
 /** Rounded elbow connector from (x1,y1) down to (x2,y2). */
 function elbow(x1: number, y1: number, x2: number, y2: number): string {
   const ym = y1 + (y2 - y1) / 2;
   if (Math.abs(x1 - x2) < 1) return `M${x1},${y1} V${y2}`;
-  const r = Math.min(12, Math.abs(x2 - x1) / 2, (y2 - y1) / 4);
+  const r = Math.min(12, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 4);
   const dir = x2 > x1 ? 1 : -1;
-  return [
-    `M${x1},${y1}`,
-    `V${ym - r}`,
-    `Q${x1},${ym} ${x1 + dir * r},${ym}`,
-    `H${x2 - dir * r}`,
-    `Q${x2},${ym} ${x2},${ym + r}`,
-    `V${y2}`,
-  ].join(' ');
+  return [`M${x1},${y1}`, `V${ym - r}`, `Q${x1},${ym} ${x1 + dir * r},${ym}`, `H${x2 - dir * r}`, `Q${x2},${ym} ${x2},${ym + r}`, `V${y2}`].join(' ');
+}
+
+/** Smooth curve between two points, for links that jump between family trees. */
+function curve(x1: number, y1: number, x2: number, y2: number, sag: number): string {
+  return `M${x1},${y1} C${x1},${y1 + sag} ${x2},${y2 + (y2 >= y1 ? -sag : sag)} ${x2},${y2}`;
 }
 
 /**
- * Full-tree layout (every generation shown). Focus-person based: the focus person's parents form the top couple ("anchor"), so the
- * focus, their siblings and everyone below are shown, with one more generation of
- * ancestors above the anchor couple.
+ * The whole family on one canvas. Patrick's tree is built first; every other connected
+ * family (in-laws, friends' families) is built as its own tree from its eldest ancestors,
+ * placed beside the trees it connects to with generations lined up, and joined to them
+ * by curved connectors. Everyone appears exactly once.
  */
-export function layoutTree(g: FamilyGraph, focusId: string): TreeLayout {
-  // The root couple (Patrick & Ollie) is the top of the default view; their parents are
-  // still reachable through the "parents" chip.
-  const focusParents = focusId === g.rootId ? [] : g.parentsOf(focusId);
-  const anchor = focusParents[0] ?? focusId;
-  const anchorOther = focusParents[1];
-
-  const sharedKids = (a: string, b: string) => g.childrenOf(a).filter((k) => g.parentsOf(k).includes(b)).length;
-
+export function layoutTree(g: FamilyGraph): TreeLayout {
   const placed = new Set<string>();
-  const build = (person: string, preferPartner?: string): Unit => {
+  const sharedKids = (a: string, b: string) => g.childrenOf(a).filter((k) => g.parentsOf(k).includes(b)).length;
+  const free = (ids: string[]) => ids.filter((x) => !placed.has(x));
+
+  const build = (person: string): Unit => {
     placed.add(person);
-    const partners = g.partnersOf(person).filter((p) => !placed.has(p));
-    if (preferPartner && !partners.includes(preferPartner) && !placed.has(preferPartner)) partners.unshift(preferPartner);
+    const partners = free(g.partnersOf(person));
     partners.forEach((p) => placed.add(p));
-    const friends = g.friendsOf(person).filter((f) => !placed.has(f));
+    const friends = free(g.friendsOf(person));
     friends.forEach((f) => placed.add(f));
 
-    // The spouse sits directly to the right: the partner they have children with (so the
-    // children's line starts between them), otherwise their current partner. Anyone else
-    // linked as a partner (friends, former partners) goes on the other side.
+    // Spouse directly to the right (co-parent, else current partner); other partners, then
+    // friends, on the left. Each of them brings their own other partners along, further out.
     const coParents = partners.filter((p) => sharedKids(person, p) > 0).sort((a, b) => sharedKids(person, b) - sharedKids(person, a));
     const current = partners.find((p) => g.isCurrentPartner(person, p));
-    const spouse = preferPartner ?? coParents[0] ?? current ?? partners[0];
+    const spouse = coParents[0] ?? current ?? partners[0];
     const rank = (p: string) => (p === current ? 0 : coParents.includes(p) ? 1 : 2);
-    const others = partners.filter((p) => p !== spouse).sort((a, b) => rank(a) - rank(b)); // nearest first
-    // Friends go furthest out, beyond any other partners.
-    const order = [...[...friends].reverse(), ...[...others].reverse(), person, ...(spouse ? [spouse] : [])];
-
-    const kids = g.childrenOf(person).filter((k) => !placed.has(k));
-    return {
-      person,
-      partners: [...partners, ...friends],
-      friends,
-      order,
-      children: kids.map((k) => build(k)),
+    const others = partners.filter((p) => p !== spouse).sort((a, b) => rank(a) - rank(b));
+    const withTheirPartners = (s: string) => {
+      const extra = free(g.partnersOf(s));
+      extra.forEach((x) => placed.add(x));
+      return [s, ...extra];
     };
-  };
-  const rootUnit = build(anchor, anchorOther);
+    const right = spouse ? withTheirPartners(spouse) : [];
+    const left = [...others, ...friends].flatMap(withTheirPartners); // nearest first
+    const order = [...left.reverse(), person, ...right];
 
-  const root = hierarchy(rootUnit, (u) => u.children);
-  const laid = tree<Unit>()
-    .nodeSize([1, ROW_H])
-    .separation((a, b) => (unitWidth(a.data) + unitWidth(b.data)) / 2 + (a.parent === b.parent ? SIBLING_GAP : COUSIN_GAP))(root);
+    // Children of anyone in the group, ordered by where their parents sit.
+    const pos = new Map(order.map((id, i) => [id, i]));
+    const kids = [...new Set(order.flatMap((m) => free(g.childrenOf(m))))].sort((a, b) => {
+      const pa = Math.min(...g.parentsOf(a).map((p) => pos.get(p) ?? 99));
+      const pb = Math.min(...g.parentsOf(b).map((p) => pos.get(p) ?? 99));
+      return pa - pb;
+    });
+    const children: Unit[] = [];
+    for (const k of kids) if (!placed.has(k)) children.push(build(k));
+    return { person, order, friends: new Set(friends), children };
+  };
+
+  // Trees: Patrick's first, then each remaining family from its eldest ancestor.
+  const roots: Unit[] = [build(g.rootId)];
+  const descCount = (id: string) => {
+    const s = new Set<string>();
+    const walk = (i: string) => {
+      for (const k of g.childrenOf(i)) {
+        if (!s.has(k)) {
+          s.add(k);
+          walk(k);
+        }
+      }
+    };
+    walk(id);
+    return s.size;
+  };
+  for (;;) {
+    const heads = g.people.map((p) => p.id).filter((id) => !placed.has(id) && free(g.parentsOf(id)).length === 0);
+    if (!heads.length) break;
+    heads.sort((a, b) => descCount(b) - descCount(a));
+    roots.push(build(heads[0]));
+  }
 
   const cards: CardPos[] = [];
-  // Raw link geometry; turned into SVG paths after coordinates are normalized.
-  type Raw = Omit<LinkPos, 'd'> & { pts: [number, number, number, number] };
+  const at = new Map<string, CardPos>();
+  type Raw = Omit<LinkPos, 'd'> & { pts: [number, number, number, number]; kind: 'elbow' | 'line' | 'curve' };
   const raw: Raw[] = [];
-  const cardCenter = new Map<string, { cx: number; top: number }>();
+  const drawn = new Set<string>(); // "parent>child" and "a~b" pairs that already have a connector
 
-  const unitTop = 0; // anchor row; ancestors go to negative y
-  laid.each((node: HierarchyPointNode<Unit>) => {
-    const u = node.data;
-    const w = unitWidth(u);
-    const left = node.x - w / 2;
-    const y = unitTop + node.y;
-    u.order.forEach((id, i) => {
-      const x = left + i * (CARD_W + PARTNER_GAP);
-      cards.push({
-        id,
-        x,
-        y,
-        asPartner: id !== u.person && !u.friends.includes(id),
-        asFriend: u.friends.includes(id),
-      });
-      cardCenter.set(id, { cx: x + CARD_W / 2, top: y });
-      if (i > 0) {
-        // Dashed link between neighbouring cards in the group.
-        raw.push({
-          key: `couple-${u.order[i - 1]}-${id}`,
-          pts: [x - PARTNER_GAP, y + CARD_H / 2, x, y + CARD_H / 2],
-          childId: id,
-          parentIds: [u.order[i - 1]],
-          couple: true,
-          friend: u.friends.includes(id) || u.friends.includes(u.order[i - 1]),
-        });
-      }
+  // Lay out each tree on its own, then place it beside what's already placed.
+  let minX = Infinity;
+  let maxX = -Infinity;
+  roots.forEach((rootUnit, ti) => {
+    const laid = tree<Unit>()
+      .nodeSize([1, ROW_H])
+      .separation((a, b) => (unitWidth(a.data) + unitWidth(b.data)) / 2 + (a.parent === b.parent ? SIBLING_GAP : COUSIN_GAP))(
+      hierarchy(rootUnit, (u) => u.children)
+    );
+    const local: { id: string; x: number; y: number; unit: Unit }[] = [];
+    laid.each((node: HierarchyPointNode<Unit>) => {
+      const u = node.data;
+      const left = node.x - unitWidth(u) / 2;
+      u.order.forEach((id, i) => local.push({ id, x: left + i * (CARD_W + PARTNER_GAP), y: node.y, unit: u }));
     });
-  });
 
-  // Parent → child connectors, starting between the child's two parents when both are shown.
-  laid.each((node) => {
-    const u = node.data;
-    for (const child of node.children ?? []) {
-      const kid = child.data.person;
-      const other = g.parentsOf(kid).find((p) => p !== u.person);
-      const from = cardCenter.get(u.person)!;
-      const otherPos = other && u.partners.includes(other) ? cardCenter.get(other) : undefined;
-      const x1 = otherPos ? (from.cx + otherPos.cx) / 2 : from.cx;
-      const y1 = otherPos ? from.top + CARD_H / 2 : from.top + CARD_H;
-      const to = cardCenter.get(kid)!;
-      raw.push({
-        key: `p-${u.person}-${kid}`,
-        pts: [x1, y1, to.cx, to.top],
-        childId: kid,
-        parentIds: [u.person, ...(other ? [other] : [])],
-      });
+    let dx = 0;
+    let dy = 0;
+    if (ti > 0) {
+      // Line up generations with the first link into what's already placed.
+      const ids = new Set(local.map((c) => c.id));
+      let anchor: { theirs: CardPos; ourY: number; rows: number } | undefined;
+      for (const c of local) {
+        for (const kid of g.childrenOf(c.id)) if (!ids.has(kid) && at.has(kid)) anchor ??= { theirs: at.get(kid)!, ourY: c.y, rows: -1 };
+        for (const par of g.parentsOf(c.id)) if (!ids.has(par) && at.has(par)) anchor ??= { theirs: at.get(par)!, ourY: c.y, rows: 1 };
+        for (const p of [...g.partnersOf(c.id), ...g.friendsOf(c.id)]) {
+          if (!ids.has(p) && at.has(p)) anchor ??= { theirs: at.get(p)!, ourY: c.y, rows: 0 };
+        }
+      }
+      const lx = Math.min(...local.map((c) => c.x));
+      const rx = Math.max(...local.map((c) => c.x + CARD_W));
+      const goLeft = anchor ? anchor.theirs.x + CARD_W / 2 < (minX + maxX) / 2 : false;
+      dx = goLeft ? minX - TREE_GAP - rx : maxX + TREE_GAP - lx;
+      if (anchor) dy = anchor.theirs.y + anchor.rows * ROW_H - anchor.ourY;
     }
-  });
 
-  // One generation of ancestors above each member of the anchor couple.
-  const anchorMembers = [rootUnit.person, ...rootUnit.partners];
-  if (focusId === g.rootId) {
-    // Default view starts at the root couple: offer a "parents" button instead of drawing them.
-    for (const c of cards) if (anchorMembers.includes(c.id) && g.parentsOf(c.id).length) c.moreAbove = true;
-  }
-  const groups = (focusId === g.rootId ? [] : anchorMembers)
-    .map((m) => ({ child: m, parents: g.parentsOf(m).filter((p) => !cardCenter.has(p)) }))
-    .filter((x) => x.parents.length)
-    .map((x) => {
-      const w = x.parents.length * CARD_W + (x.parents.length - 1) * PARTNER_GAP;
-      return { ...x, w, want: cardCenter.get(x.child)!.cx - w / 2 };
-    })
-    .sort((a, b) => a.want - b.want);
-  let right = -Infinity;
-  const yUp = unitTop - ROW_H;
-  for (const grp of groups) {
-    const left = Math.max(grp.want, right + COUSIN_GAP);
-    right = left + grp.w;
-    grp.parents.forEach((p, i) => {
-      const x = left + i * (CARD_W + PARTNER_GAP);
-      cards.push({ id: p, x, y: yUp, moreAbove: g.parentsOf(p).length > 0 });
-      cardCenter.set(p, { cx: x + CARD_W / 2, top: yUp });
-      if (i > 0) {
-        raw.push({ key: `couple-up-${grp.parents[0]}-${p}`, pts: [x - PARTNER_GAP, yUp + CARD_H / 2, x, yUp + CARD_H / 2], childId: p, parentIds: [grp.parents[0]], couple: true });
+    for (const c of local) {
+      const card: CardPos = {
+        id: c.id,
+        x: c.x + dx,
+        y: c.y + dy,
+        asPartner: c.id !== c.unit.person && !c.unit.friends.has(c.id),
+        asFriend: c.unit.friends.has(c.id),
+      };
+      cards.push(card);
+      at.set(c.id, card);
+      minX = Math.min(minX, card.x);
+      maxX = Math.max(maxX, card.x + CARD_W);
+    }
+
+    // Connectors inside this tree.
+    laid.each((node) => {
+      const u = node.data;
+      u.order.forEach((id, i) => {
+        if (!i) return;
+        const prev = u.order[i - 1];
+        const a = at.get(prev)!;
+        raw.push({
+          key: `couple-${prev}-${id}`,
+          pts: [a.x + CARD_W, a.y + CARD_H / 2, a.x + CARD_W + PARTNER_GAP, a.y + CARD_H / 2],
+          kind: 'line',
+          childId: id,
+          parentIds: [prev],
+          couple: true,
+          friend: g.friendsOf(prev).includes(id),
+        });
+        drawn.add(`${prev}~${id}`).add(`${id}~${prev}`);
+      });
+      for (const child of node.children ?? []) {
+        const kid = child.data.person;
+        const shown = g.parentsOf(kid).filter((p) => u.order.includes(p));
+        if (!shown.length) continue;
+        const ps = shown.map((p) => at.get(p)!);
+        const two = ps.length > 1;
+        const x1 = ps.reduce((s, p) => s + p.x + CARD_W / 2, 0) / ps.length;
+        const y1 = two ? ps[0].y + CARD_H / 2 : ps[0].y + CARD_H;
+        const to = at.get(kid)!;
+        raw.push({ key: `p-${shown.join('+')}-${kid}`, pts: [x1, y1, to.x + CARD_W / 2, to.y], kind: 'elbow', childId: kid, parentIds: shown });
+        shown.forEach((p) => drawn.add(`${p}>${kid}`));
       }
     });
-    const first = cardCenter.get(grp.parents[0])!;
-    const last = cardCenter.get(grp.parents[grp.parents.length - 1])!;
-    const two = grp.parents.length > 1;
-    const to = cardCenter.get(grp.child)!;
-    raw.push({
-      key: `up-${grp.child}`,
-      pts: [(first.cx + last.cx) / 2, two ? yUp + CARD_H / 2 : yUp + CARD_H, to.cx, to.top],
-      childId: grp.child,
-      parentIds: grp.parents,
-    });
+  });
+
+  // Connectors between trees: parent -> child, and partners/friends drawn apart.
+  for (const c of cards) {
+    const missing = g.parentsOf(c.id).filter((p) => at.has(p) && !drawn.has(`${p}>${c.id}`));
+    if (missing.length) {
+      const ps = missing.map((p) => at.get(p)!);
+      const x1 = ps.reduce((s, p) => s + p.x + CARD_W / 2, 0) / ps.length;
+      const y1 = Math.max(...ps.map((p) => p.y)) + CARD_H;
+      raw.push({ key: `xp-${missing.join('+')}-${c.id}`, pts: [x1, y1, c.x + CARD_W / 2, c.y], kind: 'curve', childId: c.id, parentIds: missing, cross: true });
+      missing.forEach((p) => drawn.add(`${p}>${c.id}`));
+    }
+    for (const p of [...g.partnersOf(c.id), ...g.friendsOf(c.id)]) {
+      if (!at.has(p) || drawn.has(`${c.id}~${p}`)) continue;
+      const o = at.get(p)!;
+      raw.push({
+        key: `xc-${c.id}-${p}`,
+        pts: [c.x + CARD_W / 2, c.y + CARD_H, o.x + CARD_W / 2, o.y + CARD_H],
+        kind: 'curve',
+        childId: p,
+        parentIds: [c.id],
+        couple: true,
+        friend: g.friendsOf(c.id).includes(p),
+        cross: true,
+      });
+      drawn.add(`${c.id}~${p}`).add(`${p}~${c.id}`);
+    }
   }
 
   // Normalize to positive coordinates.
-  const minX = Math.min(...cards.map((c) => c.x)) - PAD;
-  const minY = Math.min(...cards.map((c) => c.y)) - PAD;
-  const maxX = Math.max(...cards.map((c) => c.x + CARD_W)) + PAD;
-  const maxY = Math.max(...cards.map((c) => c.y + CARD_H)) + PAD;
+  const x0 = Math.min(...cards.map((c) => c.x)) - PAD;
+  const y0 = Math.min(...cards.map((c) => c.y)) - PAD;
+  const x1 = Math.max(...cards.map((c) => c.x + CARD_W)) + PAD;
+  const y1 = Math.max(...cards.map((c) => c.y + CARD_H)) + PAD;
   for (const c of cards) {
-    c.x -= minX;
-    c.y -= minY;
+    c.x -= x0;
+    c.y -= y0;
   }
-  const links: LinkPos[] = raw.map(({ pts: [x1, y1, x2, y2], ...rest }) => ({
-    ...rest,
-    d: rest.couple
-      ? `M${x1 - minX},${y1 - minY} H${x2 - minX}`
-      : elbow(x1 - minX, y1 - minY, x2 - minX, y2 - minY),
-  }));
+  const links: LinkPos[] = raw.map(({ pts: [ax, ay, bx, by], kind, ...rest }) => {
+    const [a, b, c, d] = [ax - x0, ay - y0, bx - x0, by - y0];
+    return {
+      ...rest,
+      d:
+        kind === 'line'
+          ? `M${a},${b} H${c}`
+          : kind === 'elbow'
+            ? elbow(a, b, c, d)
+            : curve(a, b, c, d, Math.abs(b - d) < 1 ? 70 : Math.max(60, Math.abs(d - b) / 2)),
+    };
+  });
 
-  return { cards, links, width: maxX - minX, height: maxY - minY, anchorId: anchor };
+  return { cards, links, width: x1 - x0, height: y1 - y0 };
 }
