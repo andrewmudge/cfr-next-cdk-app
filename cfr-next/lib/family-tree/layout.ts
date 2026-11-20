@@ -89,10 +89,17 @@ export function layoutTree(g: FamilyGraph): TreeLayout {
     const spouse = coParents[0] ?? current ?? partners[0];
     const rank = (p: string) => (p === current ? 0 : coParents.includes(p) ? 1 : 2);
     const others = partners.filter((p) => p !== spouse).sort((a, b) => rank(a) - rank(b));
+    // Follow partners down the chain (e.g. Rick -> his partner Frank -> Frank's wife Toni),
+    // so each couple stays side by side instead of being drawn as separate families.
     const withTheirPartners = (s: string) => {
-      const extra = free(g.partnersOf(s));
-      extra.forEach((x) => placed.add(x));
-      return [s, ...extra];
+      const chain = [s];
+      for (let i = 0; i < chain.length; i++) {
+        for (const x of free(g.partnersOf(chain[i]))) {
+          placed.add(x);
+          chain.push(x);
+        }
+      }
+      return chain;
     };
     const right = spouse ? withTheirPartners(spouse) : [];
     const left = [...others, ...friends].flatMap(withTheirPartners); // nearest first
