@@ -4,29 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { Shield, Users, BarChart3, Settings, LogOut, ArrowLeft } from 'lucide-react';
+import { Shield, LogOut, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import PendingUsers from '@/components/admin/PendingUsers';
-import UserEditor from '@/components/admin/UserEditor';
 import ManagePhotos from '@/components/admin/ManagePhotos';
 import Registrations from '@/components/admin/Registrations';
 import Messaging from '@/components/admin/Messaging';
 import Chronicle from '@/components/admin/Chronicle';
-import { getAllUsers } from '@/lib/user-status';
 import { isAdminEmail } from '@/lib/admin-emails';
-
-// Helper to fetch photo count (through the site's photo route; the Lambda has no public URL)
-const getPhotoCount = async (): Promise<number | null> => {
-  try {
-    const response = await fetch('/api/photos/list');
-    if (!response.ok) return null;
-    const data = await response.json();
-    // Assume photos are returned as an array in data.photos
-    return Array.isArray(data.photos) ? data.photos.length : null;
-  } catch {
-    return null;
-  }
-};
 
 // Who counts as admin: lib/admin-emails.ts
 
@@ -34,9 +18,6 @@ export default function AdminDashboard() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [showUserEditor, setShowUserEditor] = useState(false);
-  const [totalUsers, setTotalUsers] = useState<number | null>(null);
-  const [totalPhotos, setTotalPhotos] = useState<number | null>(null);
   const [showManagePhotos, setShowManagePhotos] = useState(false);
 
   useEffect(() => {
@@ -47,9 +28,6 @@ export default function AdminDashboard() {
       }
       if (isAdminEmail(user.email)) {
         setIsAuthorized(true);
-        // Fetch total users and photos when authorized
-        getAllUsers().then(users => setTotalUsers(users.length)).catch(() => setTotalUsers(null));
-        getPhotoCount().then(count => setTotalPhotos(count)).catch(() => setTotalPhotos(null));
       } else {
         router.push('/');
       }
@@ -121,66 +99,33 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-            <div className="flex items-center">
-              <Users className="w-8 h-8 text-blue-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-400">Total Users</p>
-                <p className="text-2xl font-bold text-white">{totalUsers !== null ? totalUsers : '--'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-            <div className="flex items-center">
-              <BarChart3 className="w-8 h-8 text-green-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-400">Photos Uploaded</p>
-                <p className="text-2xl font-bold text-white">{totalPhotos !== null ? totalPhotos : '--'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-            <div className="flex items-center">
-              <Settings className="w-8 h-8 text-purple-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-400">System Status</p>
-                <p className="text-2xl font-bold text-green-400">Online</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Quick Actions */}
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
           <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
               {/* The tree is edited in place: tap anyone on the tree while signed in as admin. */}
               <Link href="/#family-tree-preview">Edit Family Tree</Link>
             </Button>
             <Button
-              onClick={() => setShowUserEditor(!showUserEditor)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {showUserEditor ? 'Hide User Editor' : 'Edit Users'}
-            </Button>
-            <Button 
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={() => setShowManagePhotos(!showManagePhotos)}
             >
               {showManagePhotos ? 'Hide Manage Photos' : 'Manage Photos'}
             </Button>
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-              System Logs
-            </Button>
-            <Button className="bg-orange-600 hover:bg-orange-700 text-white">
-              Settings
-            </Button>
           </div>
+        </div>
+
+        {/* Manage Photos */}
+        {showManagePhotos && (
+          <div className="mt-8">
+            <ManagePhotos />
+          </div>
+        )}
+
+        {/* Family email (SES) */}
+        <div className="mt-8">
+          <Messaging />
         </div>
 
         {/* Reunion sign-ups */}
@@ -191,38 +136,6 @@ export default function AdminDashboard() {
         {/* Churchwell Chronicle newsletter */}
         <div className="mt-8">
           <Chronicle />
-        </div>
-
-        {/* Family email (SES) */}
-        <div className="mt-8">
-          <Messaging />
-        </div>
-
-        {/* User Editor */}
-        {showUserEditor && (
-          <div className="mt-8">
-            <UserEditor />
-          </div>
-        )}
-
-        {/* Manage Photos */}
-        {showManagePhotos && (
-          <div className="mt-8">
-            <ManagePhotos />
-          </div>
-        )}
-
-        {/* Manual User Approval */}
-        <div className="mt-8">
-          <PendingUsers />
-        </div>
-
-        {/* Recent Activity */}
-        <div className="mt-8 bg-slate-800 rounded-lg p-6 border border-slate-700">
-          <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
-          <div className="text-gray-400">
-            <p>No recent activity to display.</p>
-          </div>
         </div>
       </main>
     </div>
