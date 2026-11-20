@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Calendar, MapPin } from 'lucide-react';
+import { formatReunionDates, reunionYear } from '@/lib/reunion-config';
 import Image from 'next/image';
 
 const HeroSection = () => {
@@ -90,7 +91,7 @@ const HeroSection = () => {
             <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-12">
               <div className="flex items-center space-x-3 text-white bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20">
                 <Calendar className="w-5 h-5 text-red-400" />
-                <span className="text-lg font-medium">Sep 2nd - Sep 6th 2027</span>
+                <span className="text-lg font-medium">{formatReunionDates(reunionYear(), 'ordinal')}</span>
               </div>
               <div className="flex items-center space-x-3 text-white bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20">
                 <MapPin className="w-5 h-5 text-red-400" />

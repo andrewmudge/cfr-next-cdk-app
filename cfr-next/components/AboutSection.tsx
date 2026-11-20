@@ -1,6 +1,7 @@
 'use client';
 
 import { Calendar, MapPin, Users } from 'lucide-react';
+import { formatReunionDates, reunionYear } from '@/lib/reunion-config';
 // ...existing code...
 import Image from 'next/image';
 
@@ -46,8 +47,8 @@ const AboutSection = () => {
                   <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
                   <h3 className="font-bold text-slate-800 mb-1 sm:mb-2">Dates</h3>
                   <p className="text-xs sm:text-sm text-slate-600">
-                    September 2nd - September 6th<br />
-                    2027
+                    {formatReunionDates(reunionYear(), 'long')}<br />
+                    {reunionYear()}
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 sm:p-6 rounded-lg text-center group hover:bg-red-50 transition-colors border border-slate-200 text-xs sm:text-base">

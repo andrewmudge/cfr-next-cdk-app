@@ -44,6 +44,10 @@ const csvCell = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 export default function Registrations() {
   const [year, setYear] = useState('');
+  const [currentYear, setCurrentYear] = useState('');
+  /** Which year's sign-ups to view; empty = the current reunion year. */
+  const [viewYear, setViewYear] = useState('');
+  const yq = year ? `?year=${year}` : '';
   const [subs, setSubs] = useState<Submission[]>([]);
   const [unverified, setUnverified] = useState<Unverified[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,11 +57,12 @@ export default function Registrations() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/registrations', { cache: 'no-store' });
+      const res = await fetch(`/api/admin/registrations${viewYear ? `?year=${viewYear}` : ''}`, { cache: 'no-store' });
       if (res.status === 401) throw new Error('Not authorized. Try signing out and back in.');
       if (!res.ok) throw new Error('Could not load registrations.');
       const data = await res.json();
       setYear(data.year);
+      setCurrentYear(data.currentYear ?? data.year);
       setSubs(data.submissions);
       setUnverified(data.unverified);
     } catch (e) {
@@ -65,7 +70,7 @@ export default function Registrations() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [viewYear]);
 
   useEffect(() => {
     load();
@@ -125,7 +130,7 @@ export default function Registrations() {
     if (!window.confirm(`Delete the whole sign-up from ${s.submitterName}?\n\n${names}\n\nThey can sign up again afterwards. This can't be undone.`)) return;
     setBusy(s.submissionId);
     try {
-      const res = await fetch(`/api/admin/registrations/${encodeURIComponent(s.submissionId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/registrations/${encodeURIComponent(s.submissionId)}${yq}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
       setSubs((all) => all.filter((x) => x.submissionId !== s.submissionId));
       toast.success(`Deleted ${s.submitterName}'s sign-up`);
@@ -145,7 +150,7 @@ export default function Registrations() {
     setBusy(s.submissionId);
     try {
       const res = await fetch(
-        `/api/admin/registrations/${encodeURIComponent(s.submissionId)}/people/${encodeURIComponent(personId)}`,
+        `/api/admin/registrations/${encodeURIComponent(s.submissionId)}/people/${encodeURIComponent(personId)}${yq}`,
         { method: 'DELETE' }
       );
       if (!res.ok) throw new Error();
@@ -177,7 +182,26 @@ export default function Registrations() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <ClipboardList className="w-6 h-6 text-red-400" />
-          {year} Sign-Ups
+          {currentYear ? (
+            <select
+              value={year}
+              onChange={(e) => setViewYear(e.target.value === currentYear ? '' : e.target.value)}
+              className="rounded-md border border-slate-600 bg-slate-900 px-2 py-1 text-white"
+              aria-label="Reunion year"
+            >
+              {[0, 1, 2, 3].map((n) => {
+                const y = String(Number(currentYear) - n);
+                return (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                );
+              })}
+            </select>
+          ) : (
+            year
+          )}{' '}
+          Sign-Ups
           {!loading && <span className="text-gray-400 font-normal text-base">({people.length} people, {subs.length} families)</span>}
         </h2>
         <div className="flex gap-2">

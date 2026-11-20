@@ -7,7 +7,7 @@ import {
   AGE_GROUP_IDS,
   MAX_ATTENDEES,
   MAX_DOGS,
-  REUNION_YEAR,
+  currentReunionYear,
 } from '@/lib/reunion-config';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await createRegistration({
-      year: REUNION_YEAR,
+      year: currentReunionYear(),
       submitter: v.submitter,
       email: v.email.toLowerCase(),
       phone: v.phone ? `+1${cleanPhoneNumber(v.phone)}` : '',

@@ -13,7 +13,7 @@ import {
   ACTIVITIES,
   MAX_ATTENDEES,
   MAX_DOGS,
-  REUNION_YEAR,
+  currentReunionYear,
   allowedActivities,
   familyDues,
   formatDollars,
@@ -39,7 +39,6 @@ interface Draft {
   submitter: SelectedPerson | null;
   email: string;
   phone: string;
-  attending: boolean;
   selfAgeGroup?: AgeGroupId;
   selfAdultRate?: AdultRateId;
   selfActivities: ActivityId[];
@@ -47,13 +46,13 @@ interface Draft {
   dogs: number;
 }
 
-const DRAFT_KEY = `cfr-register-draft-${REUNION_YEAR}-v2`;
+// Drafts are per reunion year, so a half-filled form doesn't carry over after Labor Day.
+const draftKey = () => `cfr-register-draft-${currentReunionYear()}-v2`;
 const newRow = (): Row => ({ key: Math.random().toString(36).slice(2), person: null, activities: [] });
 const emptyDraft = (): Draft => ({
   submitter: null,
   email: '',
   phone: '',
-  attending: true,
   selfActivities: [],
   rows: [],
   dogs: 0,
@@ -61,7 +60,7 @@ const emptyDraft = (): Draft => ({
 
 function loadDraft(): Draft {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(draftKey());
     if (raw) return { ...emptyDraft(), ...JSON.parse(raw) };
   } catch {}
   return emptyDraft();
@@ -108,6 +107,7 @@ const inputClass =
   'w-full rounded-xl border-2 border-slate-300 bg-white px-4 min-h-[52px] text-base text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200';
 
 export default function RegisterSection() {
+  const year = currentReunionYear();
   const [people, setPeople] = useState<PublicPerson[]>([]);
   const [registered, setRegistered] = useState<Map<string, RegisteredPerson>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -149,7 +149,7 @@ export default function RegisterSection() {
   useEffect(() => {
     if (step === 'done') return;
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      localStorage.setItem(draftKey(), JSON.stringify(draft));
     } catch {}
   }, [draft, step]);
 
@@ -181,7 +181,7 @@ export default function RegisterSection() {
 
   const submitterReg =
     draft.submitter?.kind === 'existing' ? registered.get(draft.submitter.personId) : undefined;
-  const selfAttending = draft.attending && !submitterReg;
+  const selfAttending = !submitterReg; // whoever signs up is coming
 
   // Everyone chosen so far, so the same person can't be picked twice.
   const chosenKeys = useMemo(() => {
@@ -294,7 +294,7 @@ export default function RegisterSection() {
       setStep('done');
       setRemovedNotice([]);
       try {
-        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(draftKey());
       } catch {}
       load(); // refresh registered list + any newly added names
       document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
@@ -315,7 +315,7 @@ export default function RegisterSection() {
     <section id="register" className="py-20 bg-gradient-to-b from-white to-slate-50 scroll-mt-16">
       <div className="mx-auto max-w-2xl px-4">
         <div className="text-center mb-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">Sign Up for {REUNION_YEAR}</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">Sign Up for {year}</h2>
           <p className="text-lg text-slate-600">
             Let us know who&apos;s coming and what you want to play. One person can sign up the whole family.
           </p>
@@ -359,7 +359,7 @@ export default function RegisterSection() {
                 </Button>
                 <p className="text-sm text-slate-500">
                   Venmo @churchwellreunion. In the note, please write:{' '}
-                  <strong className="text-slate-700">CFR {REUNION_YEAR} – {done.submitterName}</strong>
+                  <strong className="text-slate-700">CFR {year} – {done.submitterName}</strong>
                 </p>
               </div>
             ) : (
@@ -445,7 +445,7 @@ export default function RegisterSection() {
           </div>
         ) : (
           <div className="space-y-6">
-            <AlreadyRegisteredLookup people={people} registered={registered} year={REUNION_YEAR} />
+            <AlreadyRegisteredLookup people={people} registered={registered} year={year} />
 
             <form
               className="rounded-2xl bg-white p-5 sm:p-8 shadow-lg space-y-8"
@@ -466,12 +466,9 @@ export default function RegisterSection() {
                 className="hidden"
               />
 
-              {/* Step 1 */}
+              {/* About you (the person signing up is always coming) */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-bold text-slate-800 mb-2">
-                  <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-red-600 text-white text-base mr-2">1</span>
-                  About you
-                </legend>
+                <legend className="text-xl font-bold text-slate-800 mb-2">About you</legend>
                 <div className="space-y-2">
                   <label className="block font-medium text-slate-700">Your name</label>
                   <PersonCombobox
@@ -573,75 +570,53 @@ export default function RegisterSection() {
                 {!usingOnFile && (
                   <p className="text-sm text-slate-500">Email or phone, whichever is easier. We only use it to reach you about the reunion.</p>
                 )}
-              </fieldset>
 
-              {/* Step 2 */}
-              <fieldset className="space-y-4">
-                <legend className="text-xl font-bold text-slate-800 mb-2">
-                  <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-red-600 text-white text-base mr-2">2</span>
-                  Who&apos;s coming?
-                </legend>
-
-                {draft.submitter && (
-                  submitterReg ? (
+                {draft.submitter &&
+                  (submitterReg ? (
                     <p className="rounded-xl bg-green-50 p-4 text-green-800 text-sm">
-                      ✅ You&apos;re already signed up ({formatRegistered(submitterReg)}). Add anyone else below.
+                      ✅ You&apos;re already signed up ({formatRegistered(submitterReg)}). You can still add family members below.
                     </p>
                   ) : (
-                    <div className="rounded-xl border-2 border-slate-200 p-4 space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
-                        <input
-                          type="checkbox"
-                          checked={draft.attending}
-                          onChange={(e) => update({ attending: e.target.checked })}
-                          className="w-6 h-6 accent-red-600"
-                        />
-                        <span className="font-semibold text-slate-800">
-                          I&apos;m coming ({draft.submitter.displayName})
-                        </span>
-                      </label>
-                      {draft.attending && (
+                    <div className="space-y-3">
+                      <p className="font-medium text-slate-700">Your age group</p>
+                      <AgeGroupPicker
+                        ageGroup={draft.selfAgeGroup}
+                        adultRate={draft.selfAdultRate}
+                        onChange={(g, rate) =>
+                          update({ selfAgeGroup: g, selfAdultRate: rate, selfActivities: withAge(draft.selfActivities, g) })
+                        }
+                      />
+                      {draft.selfAgeGroup && (
                         <>
-                          <p className="text-sm text-slate-600">Your age group</p>
-                          <AgeGroupPicker
-                            ageGroup={draft.selfAgeGroup}
-                            adultRate={draft.selfAdultRate}
-                            onChange={(g, rate) =>
-                              update({ selfAgeGroup: g, selfAdultRate: rate, selfActivities: withAge(draft.selfActivities, g) })
-                            }
+                          <p className="font-medium text-slate-700">What do you want to play?</p>
+                          <ActivityChips
+                            value={draft.selfActivities}
+                            onChange={(v) => update({ selfActivities: v })}
+                            allowed={allowedActivities(draft.selfAgeGroup)}
                           />
-                          {draft.selfAgeGroup && (
-                            <>
-                              <p className="text-sm text-slate-600">What do you want to play?</p>
-                              <ActivityChips
-                                value={draft.selfActivities}
-                                onChange={(v) => update({ selfActivities: v })}
-                                allowed={allowedActivities(draft.selfAgeGroup)}
-                              />
-                              {draft.rows.some((r) => r.person && r.ageGroup) && draft.selfActivities.length > 0 && (
-                                <button
-                                  type="button"
-                                  className="text-sm text-red-600 underline underline-offset-4"
-                                  onClick={() =>
-                                    setDraft((d) => ({
-                                      ...d,
-                                      rows: d.rows.map((r) =>
-                                        r.ageGroup ? { ...r, activities: withAge(d.selfActivities, r.ageGroup) } : r
-                                      ),
-                                    }))
-                                  }
-                                >
-                                  Copy my picks to everyone
-                                </button>
-                              )}
-                            </>
+                          {draft.rows.some((r) => r.person && r.ageGroup) && draft.selfActivities.length > 0 && (
+                            <button
+                              type="button"
+                              className="text-sm text-red-600 underline underline-offset-4"
+                              onClick={() =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  rows: d.rows.map((r) => (r.ageGroup ? { ...r, activities: withAge(d.selfActivities, r.ageGroup) } : r)),
+                                }))
+                              }
+                            >
+                              Copy my picks to everyone
+                            </button>
                           )}
                         </>
                       )}
                     </div>
-                  )
-                )}
+                  ))}
+              </fieldset>
 
+              {/* Family members (shown once the person signing up has picked their name) */}
+              {draft.submitter && (
+              <div className="space-y-4">
                 {draft.rows.map((row, i) => (
                   <div key={row.key} className="rounded-xl border-2 border-slate-200 p-4 space-y-3">
                     <div className="flex items-center justify-between">
@@ -698,7 +673,7 @@ export default function RegisterSection() {
                     className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 min-h-[56px] text-slate-700 font-medium hover:border-red-400 hover:text-red-600"
                   >
                     <Plus className="w-5 h-5" />
-                    {draft.rows.length === 0 && !selfAttending ? 'Add a person' : 'Add a family member'}
+                    Add a family member
                   </button>
                 )}
 
@@ -707,7 +682,8 @@ export default function RegisterSection() {
                     <Users className="w-4 h-4" /> {attendees.length} {attendees.length === 1 ? 'person' : 'people'} so far
                   </p>
                 )}
-              </fieldset>
+              </div>
+              )}
 
               {/* Dogs */}
               <div className="flex items-center justify-between gap-4 rounded-xl border-2 border-slate-200 p-4">

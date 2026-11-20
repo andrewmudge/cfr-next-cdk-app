@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Menu, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { reunionYear } from '@/lib/reunion-config';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -64,7 +65,7 @@ const Header = () => {
               />
             </div>
             <div className="text-white">
-              <h1 className="text-xl font-bold">CFR 2027</h1>
+              <h1 className="text-xl font-bold">CFR {reunionYear()}</h1>
               <p className="text-xs text-red-300">Family Reunion</p>
             </div>
           </motion.div>

@@ -1,6 +1,67 @@
-// Shared (client + server) reunion sign-up config.
-// Bump REUNION_YEAR each year — registrations are partitioned by year.
-export const REUNION_YEAR = '2027';
+// Shared (client + server) reunion config.
+
+// ---------- Reunion year & dates (automatic) ----------
+// The reunion runs Thursday through Labor Day Monday. On the Tuesday after Labor Day
+// (midnight Pacific) everything rolls over to next year: titles, dates and sign-ups.
+
+export const REUNION_TZ = 'America/Los_Angeles';
+const FIRST_REUNION_YEAR = 1966; // 2025 was the 59th annual reunion
+
+/** Day of September that Labor Day (first Monday) falls on. */
+export function laborDay(year: number): number {
+  const weekdayOfSep1 = new Date(Date.UTC(year, 8, 1)).getUTCDay(); // 0 = Sunday
+  return 1 + ((1 - weekdayOfSep1 + 7) % 7);
+}
+
+/** The reunion year being planned right now (Pacific time). */
+export function reunionYear(now: Date = new Date()): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: REUNION_TZ, year: 'numeric', month: 'numeric', day: 'numeric' })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value])
+  );
+  const y = Number(parts.year);
+  const m = Number(parts.month);
+  const d = Number(parts.day);
+  const afterLaborDay = m > 9 || (m === 9 && d > laborDay(y));
+  return afterLaborDay ? y + 1 : y;
+}
+
+/** Year as the string key registrations are stored under. Call at use time (it changes yearly). */
+export const currentReunionYear = () => String(reunionYear());
+
+const ordinalSuffix = (n: number) => {
+  const v = n % 100;
+  return (['th', 'st', 'nd', 'rd'][(v - 20) % 10] || ['th', 'st', 'nd', 'rd'][v] || 'th');
+};
+export const ordinal = (n: number) => `${n}${ordinalSuffix(n)}`;
+
+/** e.g. 61 for 2027. */
+export const reunionNumber = (year: number) => year - FIRST_REUNION_YEAR;
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** Thursday before Labor Day through Labor Day Monday. */
+export function reunionDates(year: number) {
+  const end = new Date(Date.UTC(year, 8, laborDay(year)));
+  const start = new Date(Date.UTC(year, 8, laborDay(year) - 4));
+  return { start, end };
+}
+
+/**
+ *  'ordinal' -> "Sep 2nd - Sep 6th 2027"
+ *  'short'   -> "Sep 2 - Sep 6, 2027"
+ *  'long'    -> "September 2nd - September 6th"
+ */
+export function formatReunionDates(year: number, style: 'ordinal' | 'short' | 'long'): string {
+  const { start, end } = reunionDates(year);
+  const md = (d: Date, months: string[], ord: boolean) =>
+    `${months[d.getUTCMonth()]} ${ord ? ordinal(d.getUTCDate()) : d.getUTCDate()}`;
+  if (style === 'short') return `${md(start, MONTHS, false)} - ${md(end, MONTHS, false)}, ${year}`;
+  if (style === 'long') return `${md(start, MONTHS_LONG, true)} - ${md(end, MONTHS_LONG, true)}`;
+  return `${md(start, MONTHS, true)} - ${md(end, MONTHS, true)} ${year}`;
+}
 
 export const ACTIVITIES = [
   { id: 'cornhole', label: 'Cornhole', emoji: '🌽' },
@@ -163,4 +224,10 @@ export function splitName(full: string): { given: string; family: string } {
 
 export function titleCase(s: string): string {
   return s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+}
+
+/** Admin pages can look at past years with ?year=YYYY. */
+export function yearParam(url: string): string {
+  const y = new URL(url).searchParams.get('year');
+  return y && /^\d{4}$/.test(y) ? y : currentReunionYear();
 }

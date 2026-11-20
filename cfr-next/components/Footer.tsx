@@ -2,8 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { Mail, Instagram } from 'lucide-react';
+import { formatReunionDates, reunionYear } from '@/lib/reunion-config';
 
 const Footer = () => {
+  const year = reunionYear();
   return (
     <footer className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white py-12">
       <div className="container mx-auto px-4">
@@ -25,7 +27,7 @@ const Footer = () => {
                 />
               </div>
               <div>
-                <h3 className="text-xl font-bold">CFR 2027</h3>
+                <h3 className="text-xl font-bold">CFR {year}</h3>
                 <p className="text-sm text-slate-300">Family Reunion</p>
               </div>
             </div>
@@ -98,7 +100,7 @@ const Footer = () => {
             <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
               <h5 className="font-semibold text-red-300 mb-2">Event Details</h5>
               <p className="text-sm text-slate-300">
-                Sep 2 - Sep 6, 2027<br />
+                {formatReunionDates(year, 'short')}<br />
                 Casa de Fruta, Gilroy CA
               </p>
             </div>
@@ -115,7 +117,7 @@ const Footer = () => {
         >
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <div className="flex items-center space-x-2 text-sm text-slate-300">
-              <span>&copy; 2027 Churchwell Family Reunion. All Rights Reserved.</span>
+              <span>&copy; {year} Churchwell Family Reunion. All Rights Reserved.</span>
               
               <span>A BOFA Brainchild Production</span>
             </div>

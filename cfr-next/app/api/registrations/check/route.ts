@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRegisteredPerson } from '@/lib/reunion-db';
-import { REUNION_YEAR } from '@/lib/reunion-config';
+import { currentReunionYear } from '@/lib/reunion-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'personId is required' }, { status: 400 });
   }
   try {
-    const reg = await getRegisteredPerson(REUNION_YEAR, personId);
+    const reg = await getRegisteredPerson(currentReunionYear(), personId);
     return NextResponse.json(reg ? { registered: true, ...reg } : { registered: false });
   } catch (err) {
     console.error('GET /api/registrations/check failed', err);
