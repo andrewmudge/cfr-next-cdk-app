@@ -259,11 +259,6 @@ export default function FamilyTreeExplorer() {
               )}
             </div>
 
-            <p className="text-center text-sm text-slate-500">
-              <a href="/family-tree-archive" className="underline underline-offset-4 hover:text-slate-700">
-                View the original family tree (archive)
-              </a>
-            </p>
           </div>
         )}
       </div>
