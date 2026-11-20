@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Camera, TreePine, Clock } from 'lucide-react';
 import PhotoGallery from '@/components/family/PhotoGallery';
-import FamilyTree from '@/components/family/FamilyTree';
+import FamilyTreeExplorer from '@/components/family-tree-v2/FamilyTreeExplorer';
 import PastReunions from '@/components/family/PastReunions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -10,6 +11,21 @@ const triggerClass =
   'data-[state=active]:bg-white data-[state=active]:text-slate-800 text-slate-600 rounded-lg py-3 px-2 sm:px-6 text-sm sm:text-base transition-all duration-300';
 
 const FamilyAlbumSection = () => {
+  const [tab, setTab] = useState('gallery');
+
+  // Links like /#family-tree (or the old /#family-tree-preview) open the Family Tree tab.
+  useEffect(() => {
+    const openTreeFromHash = () => {
+      if (['#family-tree', '#family-tree-preview'].includes(window.location.hash)) {
+        setTab('tree');
+        setTimeout(() => document.getElementById('family-album')?.scrollIntoView({ behavior: 'smooth' }), 50);
+      }
+    };
+    openTreeFromHash();
+    window.addEventListener('hashchange', openTreeFromHash);
+    return () => window.removeEventListener('hashchange', openTreeFromHash);
+  }, []);
+
   return (
     // id="family-only" is kept so previously shared #family-only links still land here.
     <section id="family-only" className="py-20 bg-gradient-to-b from-slate-50 to-white">
@@ -22,7 +38,7 @@ const FamilyAlbumSection = () => {
         </div>
 
         <div className="max-w-6xl mx-auto">
-          <Tabs defaultValue="gallery" className="w-full">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-8 bg-slate-100 rounded-xl p-1 h-auto">
               <TabsTrigger value="gallery" className={triggerClass}>
                 <Camera className="w-4 h-4 mr-2 shrink-0" />
@@ -42,7 +58,7 @@ const FamilyAlbumSection = () => {
               <PhotoGallery />
             </TabsContent>
             <TabsContent value="tree" className="mt-0">
-              <FamilyTree />
+              <FamilyTreeExplorer />
             </TabsContent>
             <TabsContent value="history" className="mt-0">
               <PastReunions />

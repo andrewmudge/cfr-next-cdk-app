@@ -16,7 +16,8 @@ import RelationshipFinder from './RelationshipFinder';
 
 const noRegistered = new Map<string, RegisteredPerson>();
 
-export default function FamilyTreePreview() {
+/** The interactive family tree (shown in the Family Album's "Family Tree" tab). */
+export default function FamilyTreeExplorer() {
   const [g, setG] = useState<FamilyGraph | null>(null);
   const [error, setError] = useState(false);
   const [signupPeople, setSignupPeople] = useState<PublicPerson[]>([]);
@@ -123,17 +124,11 @@ export default function FamilyTreePreview() {
   if (error) return null;
 
   return (
-    <section id="family-tree-preview" className="bg-gradient-to-b from-slate-50 to-white py-20">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="mb-8 text-center">
-          <span className="mb-3 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
-            Preview · new design
-          </span>
-          <h2 className="mb-3 text-4xl font-bold text-slate-800 md:text-5xl">Our Family Tree</h2>
-          <p className="mx-auto max-w-2xl text-lg text-slate-600">
-            Tap anyone to see their family. Search for a name, or find out exactly how two people are related.
-          </p>
-        </div>
+    <div id="family-tree-explorer" className="scroll-mt-24">
+      <div>
+        <p className="mb-4 text-center text-slate-600">
+          Tap anyone to see their family. Search for a name, or find out exactly how two people are related.
+        </p>
 
         {!g ? (
           <div className="flex justify-center py-24 text-slate-400">
@@ -254,7 +249,7 @@ export default function FamilyTreePreview() {
                     setRelB(null);
                     setRelOpen(true);
                     setSelectedId(null);
-                    document.getElementById('family-tree-preview')?.scrollIntoView({ behavior: 'smooth' });
+                    document.getElementById('family-tree-explorer')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                   onShowLine={(id) => {
                     goTo(id, { select: false, line: true });
@@ -265,11 +260,13 @@ export default function FamilyTreePreview() {
             </div>
 
             <p className="text-center text-sm text-slate-500">
-              This is a preview of a new family tree design. The original tree is still in the Family Album above.
+              <a href="/family-tree-archive" className="underline underline-offset-4 hover:text-slate-700">
+                View the original family tree (archive)
+              </a>
             </p>
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }

@@ -27,6 +27,8 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
   ref
 ) {
   const zoomRef = useRef<ReactZoomPanPinchRef>(null);
+  // Start zoomed out enough to see the shape of the family (smaller on phones).
+  const defaultScale = () => (typeof window !== 'undefined' && window.innerWidth < 640 ? 0.38 : 0.45);
   const [ready, setReady] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   // The whole family is always drawn; focusing someone only moves the view.
@@ -39,11 +41,11 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
       const box = boxRef.current;
       const c = pos.get(id);
       if (!z || !box || !c) return;
-      // Phones start a little zoomed out so more of the family fits on screen.
-      const s = scale ?? Math.max(z.instance.transformState.scale, box.clientWidth < 640 ? 0.72 : 1);
+      // Keep whatever zoom the viewer has chosen; only the position changes.
+      const s = scale ?? z.instance.transformState.scale;
       const cx = c.x + CARD_W / 2;
       const cy = c.y + CARD_H / 2;
-      z.setTransform(box.clientWidth / 2 - cx * s, box.clientHeight / 2.6 - cy * s, s, ms, 'easeOut');
+      z.setTransform(box.clientWidth / 2 - cx * s, box.clientHeight * 0.22 - cy * s, s, ms, 'easeOut'); // near the top: most of the family is below
     },
     [pos]
   );
@@ -103,7 +105,7 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, Props>(function TreeCanvas(
         ref={zoomRef}
         minScale={0.12}
         maxScale={2}
-        initialScale={1}
+        initialScale={defaultScale()}
         limitToBounds={false}
         doubleClick={{ disabled: true }}
         wheel={{ step: 0.08 }}
