@@ -673,7 +673,7 @@ export default function RegisterSection() {
                 {draft.rows.map((row, i) => (
                   <div key={row.key} className="rounded-xl border-2 border-slate-200 p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-500">Family member {i + 1}</span>
+                      <span className="text-sm font-medium text-slate-500">Friend or Family Member {i + 1}</span>
                       <button
                         type="button"
                         onClick={() => setDraft((d) => ({ ...d, rows: d.rows.filter((r) => r.key !== row.key) }))}
@@ -692,7 +692,7 @@ export default function RegisterSection() {
                       blockRegistered
                       onBlocked={blocked}
                       autoFocus={!row.person && i === draft.rows.length - 1}
-                      ariaLabel={`Family member ${i + 1} name`}
+                      ariaLabel={`Friend or family member ${i + 1} name`}
                     />
                     {row.person && (
                       <>
@@ -726,7 +726,7 @@ export default function RegisterSection() {
                     className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 min-h-[56px] text-slate-700 font-medium hover:border-red-400 hover:text-red-600"
                   >
                     <Plus className="w-5 h-5" />
-                    Add a family member
+                    Add a friend or family member
                   </button>
                 )}
 
