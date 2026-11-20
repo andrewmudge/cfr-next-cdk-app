@@ -13,6 +13,7 @@ import Registrations from '@/components/admin/Registrations';
 import Messaging from '@/components/admin/Messaging';
 import Chronicle from '@/components/admin/Chronicle';
 import { getAllUsers } from '@/lib/user-status';
+import { isAdminEmail } from '@/lib/admin-emails';
 
 // Helper to fetch photo count from Lambda
 const getPhotoCount = async (): Promise<number | null> => {
@@ -29,7 +30,7 @@ const getPhotoCount = async (): Promise<number | null> => {
   }
 };
 
-const ADMIN_EMAIL = 'mudge.andrew@gmail.com';
+// Who counts as admin: lib/admin-emails.ts
 
 export default function AdminDashboard() {
   const { user, loading, signOut } = useAuth();
@@ -46,7 +47,7 @@ export default function AdminDashboard() {
         router.push('/?admin=true');
         return;
       }
-      if (user.email === ADMIN_EMAIL) {
+      if (isAdminEmail(user.email)) {
         setIsAuthorized(true);
         // Fetch total users and photos when authorized
         getAllUsers().then(users => setTotalUsers(users.length)).catch(() => setTotalUsers(null));
@@ -59,7 +60,7 @@ export default function AdminDashboard() {
 
   // Redirect authenticated admin users from home page
   useEffect(() => {
-    if (user && user.email === ADMIN_EMAIL && window.location.pathname === '/' && window.location.search.includes('admin=true')) {
+    if (user && isAdminEmail(user.email) && window.location.pathname === '/' && window.location.search.includes('admin=true')) {
       router.push('/admin');
     }
   }, [user, router]);

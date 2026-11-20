@@ -20,6 +20,7 @@ import Footer from '@/components/Footer';
 import AuthModal from '@/components/auth/AuthModal';
 import CountdownPopup from '@/components/CountdownPopup';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { isAdminEmail } from '@/lib/admin-emails';
 import { useSignupsOpen } from '@/hooks/use-signups-open';
 
 function AdminRedirectHandler() {
@@ -28,7 +29,7 @@ function AdminRedirectHandler() {
 
   useEffect(() => {
     if (searchParams && searchParams.get('admin') === 'true') {
-      if (user && user.email === 'mudge.andrew@gmail.com') {
+      if (user && isAdminEmail(user.email)) {
         window.location.href = '/admin';
         return;
       }

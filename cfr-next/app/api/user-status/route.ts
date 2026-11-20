@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { requireAdmin } from '@/lib/admin-auth';
 
 const dynamoClient = new DynamoDBClient({ region: 'us-east-1' });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
@@ -10,6 +11,9 @@ const APPROVED_EMAILS_TABLE = 'ApprovedEmails';
 
 // Get all approved emails (users)
 export async function GET() {
+  // Admin only (see lib/admin-emails.ts).
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const result = await docClient.send(new ScanCommand({
       TableName: APPROVED_EMAILS_TABLE
@@ -47,6 +51,9 @@ export async function GET() {
 
 // Update user status (approve/deny)
 export async function PATCH(request: NextRequest) {
+  // Admin only (see lib/admin-emails.ts).
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const { email, status, denialReason } = await request.json();
     if (!email || !status) {

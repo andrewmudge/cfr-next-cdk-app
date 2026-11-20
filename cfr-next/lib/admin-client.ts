@@ -1,4 +1,3 @@
-// Client-side admin check (for showing edit controls only). The server re-checks every edit
-// with a verified Cognito token in lib/admin-auth.ts.
-export const ADMIN_EMAIL = 'mudge.andrew@gmail.com';
-export const isAdminEmail = (email?: string | null) => !!email && email.toLowerCase() === ADMIN_EMAIL;
+// Client-side admin check (for showing admin controls only). The server re-checks every
+// admin request with a verified Cognito token in lib/admin-auth.ts.
+export { ADMIN_EMAILS, isAdminEmail } from './admin-emails';

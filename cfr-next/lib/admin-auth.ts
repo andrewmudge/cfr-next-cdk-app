@@ -1,12 +1,10 @@
 import { cookies } from 'next/headers';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import { COGNITO_USER_POOL_ID } from '@/lib/cognito-config';
+import { NextResponse } from 'next/server';
+import { isAdminEmail } from '@/lib/admin-emails';
 
-// Comma-separated list; falls back to the admin already hardcoded in app/admin/page.tsx.
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'mudge.andrew@gmail.com')
-  .split(',')
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+// Who is an admin lives in lib/admin-emails.ts (one list for the server and the pages).
 
 const verifier = CognitoJwtVerifier.create({
   userPoolId: COGNITO_USER_POOL_ID,
@@ -21,8 +19,13 @@ export async function getVerifiedAdmin(): Promise<string | null> {
   try {
     const payload = await verifier.verify(token);
     const email = String(payload.email || '').toLowerCase();
-    return ADMIN_EMAILS.includes(email) ? email : null;
+    return isAdminEmail(email) ? email : null;
   } catch {
     return null;
   }
+}
+
+/** For older API routes: returns a 401 response unless the caller is a verified admin. */
+export async function requireAdmin(): Promise<NextResponse | null> {
+  return (await getVerifiedAdmin()) ? null : NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }

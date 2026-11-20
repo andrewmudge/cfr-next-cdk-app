@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin-auth';
 
 export async function DELETE(request: NextRequest) {
+  // Admin only (see lib/admin-emails.ts).
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     console.log('=== Delete User API Route Started ===');
     

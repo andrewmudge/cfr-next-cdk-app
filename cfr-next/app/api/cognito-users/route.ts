@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkUserApproval } from '@/lib/approved-users';
+import { requireAdmin } from '@/lib/admin-auth';
 
 
 // Function to call the Lambda function
@@ -66,6 +67,9 @@ async function getCognitoUsers() {
 }
 
 export async function GET() {
+  // Admin only (see lib/admin-emails.ts).
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     console.log('=== API Route Started ===');
     

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { formatPhoneForCognito } from '@/lib/phone-utils';
+import { isAdminEmail } from '@/lib/admin-emails';
 // All auth actions will be handled via Next.js API routes
 
 
@@ -96,7 +97,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       setIsAuthModalOpen(false);
       // Optionally redirect admin
-      if (data.user?.email === 'mudge.andrew@gmail.com' && window.location.search.includes('admin=true')) {
+      if (isAdminEmail(data.user?.email) && window.location.search.includes('admin=true')) {
         window.location.href = '/admin';
       }
     } catch (error: unknown) {

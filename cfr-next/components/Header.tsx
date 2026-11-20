@@ -6,6 +6,7 @@ import { Menu, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { reunionYear } from '@/lib/reunion-config';
+import { isAdminEmail } from '@/lib/admin-emails';
 import { useSignupsOpen } from '@/hooks/use-signups-open';
 
 const Header = () => {
@@ -97,9 +98,11 @@ const Header = () => {
                   {user.attributes?.given_name || user.username}
                 </span>
               </div>
-              <a href="/admin" className="text-sm text-red-300 hover:text-white">
-                Admin
-              </a>
+              {isAdminEmail(user.email) && (
+                <a href="/admin" className="text-sm text-red-300 hover:text-white">
+                  Admin
+                </a>
+              )}
               <Button
                 onClick={signOut}
                 variant="outline"
@@ -143,9 +146,11 @@ const Header = () => {
                   <div className="text-white text-sm">
                     Welcome, {user.attributes?.given_name || user.username}
                   </div>
-                  <a href="/admin" className="block text-red-300 hover:text-white py-1">
-                    Admin
-                  </a>
+                  {isAdminEmail(user.email) && (
+                    <a href="/admin" className="block text-red-300 hover:text-white py-1">
+                      Admin
+                    </a>
+                  )}
                   <Button
                     onClick={signOut}
                     variant="outline"
