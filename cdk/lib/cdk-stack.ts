@@ -220,13 +220,6 @@ export class CfrNextStack extends Stack {
     });
     bucket.grantRead(listPhotosFn);
     photoMetadataTable.grantReadData(listPhotosFn);
-    // Public invoke permission for Lambda Function URL
-    new lambda.CfnPermission(this, 'ListPhotosFnUrlPublicInvoke', {
-      action: 'lambda:InvokeFunctionUrl',
-      functionName: listPhotosFn.functionName,
-      principal: '*',
-      functionUrlAuthType: 'NONE',
-    });
 
     // Lambda for deleting photos
     const deletePhotosFn = new lambda.Function(this, 'DeletePhotosFn', {
@@ -241,13 +234,6 @@ export class CfrNextStack extends Stack {
     });
     bucket.grantDelete(deletePhotosFn);
     photoMetadataTable.grantWriteData(deletePhotosFn);
-    // Public invoke permission for Lambda Function URL
-    new lambda.CfnPermission(this, 'DeletePhotosFnUrlPublicInvoke', {
-      action: 'lambda:InvokeFunctionUrl',
-      functionName: deletePhotosFn.functionName,
-      principal: '*',
-      functionUrlAuthType: 'NONE',
-    });
 
 
     // Lambda for listing and deleteing Cognito users
@@ -266,13 +252,6 @@ export class CfrNextStack extends Stack {
       actions: ['cognito-idp:ListUsers', 'cognito-idp:AdminDeleteUser'],
       resources: [userPool.userPoolArn],
     }));
-    // Public invoke permission for Lambda Function URL
-    new lambda.CfnPermission(this, 'ListCognitoUsersFnUrlPublicInvoke', {
-      action: 'lambda:InvokeFunctionUrl',
-      functionName: listCognitoUsersFn.functionName,
-      principal: '*',
-      functionUrlAuthType: 'NONE',
-    });
 
     // Lambda for uploading photos
     const uploadPhotosFn = new lambda.Function(this, 'UploadPhotosFn', {
@@ -288,13 +267,6 @@ export class CfrNextStack extends Stack {
   });
   bucket.grantReadWrite(uploadPhotosFn);
   photoMetadataTable.grantWriteData(uploadPhotosFn);
-  // Public invoke permission for Lambda Function URL
-  new lambda.CfnPermission(this, 'UploadPhotosFnUrlPublicInvoke', {
-    action: 'lambda:InvokeFunctionUrl',
-    functionName: uploadPhotosFn.functionName,
-    principal: '*',
-    functionUrlAuthType: 'NONE',
-  });
 
     const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
       userPool,
