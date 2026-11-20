@@ -46,9 +46,11 @@ interface Unit {
   order: string[];
   friends: Set<string>;
   children: Unit[];
+  /** Placeholder that reserves room in a parent tree for another family's tree (no cards). */
+  space?: { tree: number; width: number };
 }
 
-const unitWidth = (u: Unit) => u.order.length * CARD_W + (u.order.length - 1) * PARTNER_GAP;
+const unitWidth = (u: Unit) => (u.space ? u.space.width : u.order.length * CARD_W + (u.order.length - 1) * PARTNER_GAP);
 
 /** Rounded elbow connector from (x1,y1) down to (x2,y2). */
 function elbow(x1: number, y1: number, x2: number, y2: number): string {
@@ -145,25 +147,77 @@ export function layoutTree(g: FamilyGraph): TreeLayout {
   const raw: Raw[] = [];
   const drawn = new Set<string>(); // "parent>child" and "a~b" pairs that already have a connector
 
-  // Lay out each tree on its own, then place it beside what's already placed.
-  let minX = Infinity;
-  let maxX = -Infinity;
-  roots.forEach((rootUnit, ti) => {
+  type Local = { id: string; x: number; y: number; unit: Unit };
+  const layoutOne = (rootUnit: Unit) => {
     const laid = tree<Unit>()
       .nodeSize([1, ROW_H])
       .separation((a, b) => (unitWidth(a.data) + unitWidth(b.data)) / 2 + (a.parent === b.parent ? SIBLING_GAP : COUSIN_GAP))(
       hierarchy(rootUnit, (u) => u.children)
     );
-    const local: { id: string; x: number; y: number; unit: Unit }[] = [];
+    const local: Local[] = [];
     laid.each((node: HierarchyPointNode<Unit>) => {
       const u = node.data;
+      if (u.space) return;
       const left = node.x - unitWidth(u) / 2;
       u.order.forEach((id, i) => local.push({ id, x: left + i * (CARD_W + PARTNER_GAP), y: node.y, unit: u }));
     });
+    const lx = Math.min(...local.map((c) => c.x));
+    const rx = Math.max(...local.map((c) => c.x + CARD_W));
+    const rows = Math.round(Math.max(...local.map((c) => c.y)) / ROW_H) + 1;
+    return { laid, local, lx, rx, rows };
+  };
+
+  // Families that married in below Patrick's children (e.g. Sheryl's family, the Olsens)
+  // get room reserved right next to their spouse's branch, with their parents one row
+  // above them, instead of being drawn off to the side with a long connector.
+  const unitOf = new Map<string, Unit>();
+  const parentUnit = new Map<Unit, Unit>();
+  const index = (u: Unit) => {
+    u.order.forEach((id) => unitOf.set(id, u));
+    for (const c of u.children) {
+      parentUnit.set(c, u);
+      index(c);
+    }
+  };
+  index(roots[0]);
+  const pre = roots.map((r, ti) => (ti ? layoutOne(r) : null));
+  const insertedAt = new Map<number, Unit>(); // tree index -> its space placeholder in the main tree
+  roots.forEach((r, ti) => {
+    if (!ti) return;
+    const ids = new Set(pre[ti]!.local.map((c) => c.id));
+    // A child of this family who sits in the main tree (as someone's partner).
+    const child = [...ids].flatMap((id) => g.childrenOf(id)).find((k) => !ids.has(k) && unitOf.has(k));
+    if (!child) return;
+    const u = unitOf.get(child)!;
+    const parent = parentUnit.get(u);
+    if (!parent || parent === roots[0]) return; // e.g. Cecil's family stays to the side
+    const width = pre[ti]!.rx - pre[ti]!.lx;
+    // A chain of placeholders reserves the width on every row the family uses.
+    let chain: Unit[] = [];
+    for (let d = pre[ti]!.rows - 2; d > 0; d--) {
+      chain = [{ person: `__space${ti}_${d}`, order: [], friends: new Set(), children: chain, space: { tree: ti, width } }];
+    }
+    const space: Unit = { person: `__space${ti}`, order: [], friends: new Set(), children: chain, space: { tree: ti, width } };
+    parent.children.splice(parent.children.indexOf(u) + 1, 0, space);
+    insertedAt.set(ti, space);
+  });
+
+  // Lay out each tree, then place it: inserted families into their reserved space,
+  // the rest beside what's already placed.
+  let minX = Infinity;
+  let maxX = -Infinity;
+  const spaceNodes = new Map<Unit, HierarchyPointNode<Unit>>();
+  const placeTree = (ti: number) => {
+    const { laid, local, lx, rx } = ti ? pre[ti]! : layoutOne(roots[0]);
+    if (!ti) laid.each((n) => n.data.space && spaceNodes.set(n.data, n));
 
     let dx = 0;
     let dy = 0;
-    if (ti > 0) {
+    const slot = insertedAt.get(ti) && spaceNodes.get(insertedAt.get(ti)!);
+    if (slot) {
+      dx = slot.x - (lx + rx) / 2;
+      dy = slot.y - ROW_H; // their parents sit one row above the person who married in
+    } else if (ti > 0) {
       // Line up generations with the first link into what's already placed.
       const ids = new Set(local.map((c) => c.id));
       let anchor: { theirs: CardPos; ourY: number; rows: number } | undefined;
@@ -174,8 +228,6 @@ export function layoutTree(g: FamilyGraph): TreeLayout {
           if (!ids.has(p) && at.has(p)) anchor ??= { theirs: at.get(p)!, ourY: c.y, rows: 0 };
         }
       }
-      const lx = Math.min(...local.map((c) => c.x));
-      const rx = Math.max(...local.map((c) => c.x + CARD_W));
       const goLeft = anchor ? anchor.theirs.x + CARD_W / 2 < (minX + maxX) / 2 : false;
       dx = goLeft ? minX - TREE_GAP - rx : maxX + TREE_GAP - lx;
       if (anchor) dy = anchor.theirs.y + anchor.rows * ROW_H - anchor.ourY;
@@ -198,6 +250,7 @@ export function layoutTree(g: FamilyGraph): TreeLayout {
     // Connectors inside this tree.
     laid.each((node) => {
       const u = node.data;
+      if (u.space) return;
       u.order.forEach((id, i) => {
         if (!i) return;
         const prev = u.order[i - 1];
@@ -214,6 +267,7 @@ export function layoutTree(g: FamilyGraph): TreeLayout {
         drawn.add(`${prev}~${id}`).add(`${id}~${prev}`);
       });
       for (const child of node.children ?? []) {
+        if (child.data.space) continue;
         const kid = child.data.person;
         const shown = g.parentsOf(kid).filter((p) => u.order.includes(p));
         if (!shown.length) continue;
@@ -226,7 +280,11 @@ export function layoutTree(g: FamilyGraph): TreeLayout {
         shown.forEach((p) => drawn.add(`${p}>${kid}`));
       }
     });
-  });
+  };
+  // Main tree first, then the families tucked into it, then the rest beside it.
+  placeTree(0);
+  for (const ti of insertedAt.keys()) placeTree(ti);
+  roots.forEach((_, ti) => ti && !insertedAt.has(ti) && placeTree(ti));
 
   // Connectors between trees: parent -> child, and partners/friends drawn apart.
   for (const c of cards) {
