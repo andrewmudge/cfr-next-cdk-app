@@ -5,7 +5,7 @@
 // (midnight Pacific) everything rolls over to next year: titles, dates and sign-ups.
 
 export const REUNION_TZ = 'America/Los_Angeles';
-const FIRST_REUNION_YEAR = 1966; // 2025 was the 59th annual reunion
+const FIRST_REUNION_YEAR = 1967; // 2027 is the 60th annual reunion
 
 /** Day of September that Labor Day (first Monday) falls on. */
 export function laborDay(year: number): number {
