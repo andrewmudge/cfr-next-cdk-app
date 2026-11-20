@@ -35,7 +35,8 @@ const CONFIG_SET = process.env.SES_CONFIG_SET || 'cfr-email';
 const FROM_ADDRESS = process.env.SES_FROM_ADDRESS || 'reunion@churchwellreunion.com';
 const FROM_NAME = process.env.SES_FROM_NAME || 'Churchwell Family Reunion';
 const REPLY_TO = process.env.SES_REPLY_TO || undefined;
-const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://churchwellreunion.com').replace(/\/$/, '');
+// The www host is canonical; the bare domain 307-redirects to it (bad for images and one-click POSTs).
+const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://www.churchwellreunion.com').replace(/\/$/, '');
 
 const MAX_FAILURES_KEPT = 50;
 const PROGRESS_EVERY = 10;
@@ -119,8 +120,8 @@ async function buildBroadcastMessages(job) {
     return {
       to: r.email,
       subject,
-      html: layout({ inner, unsubscribeUrl }),
-      text: `${job.body || ''}\n\n--\n${FROM_NAME}\n${SITE_URL}${unsubscribeUrl ? `\nUnsubscribe: ${unsubscribeUrl}` : ''}`,
+      html: layout({ inner }),
+      text: job.body || '',
       unsubscribeUrl,
     };
   });
@@ -232,12 +233,11 @@ function confirmationMessage(sub, label, unsubToken) {
     total > 0 ? '\nYou can pay dues on Venmo at @churchwellreunion (https://venmo.com/churchwellreunion).' : '',
     '\nNeed to change something? Just reply to this email.',
     '\nSee you there!',
-    `\n--\n${FROM_NAME}\n${SITE_URL}`,
   ].join('\n');
   return {
     to: sub.email.toLowerCase(),
     subject: `You're signed up for the ${label}!`,
-    html: layout({ inner, unsubscribeUrl }),
+    html: layout({ inner }),
     text,
     unsubscribeUrl,
   };
@@ -255,10 +255,8 @@ function announcementMessage(to, sub, label, families, people, unsubToken) {
   return {
     to,
     subject: `${sub.submitterName} is coming to the reunion!`,
-    html: layout({ inner, unsubscribeUrl }),
-    text: `${who} for the ${label}!\n\n${so}\n\nSign up: ${SITE_URL}/#register\n\n--\n${FROM_NAME}${
-      unsubscribeUrl ? `\nUnsubscribe: ${unsubscribeUrl}` : ''
-    }`,
+    html: layout({ inner }),
+    text: `${who} for the ${label}!\n\n${so}\n\nSign up: ${SITE_URL}/#register`,
     unsubscribeUrl,
   };
 }
@@ -445,23 +443,19 @@ function renderBody(text) {
     .join('');
 }
 
-function layout({ inner, unsubscribeUrl }) {
+// No visible footer by request: unsubscribing is offered through the List-Unsubscribe
+// header (Gmail/Yahoo/Apple Mail show their own "Unsubscribe" link next to the sender).
+function layout({ inner }) {
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f4f1ea">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea;padding:24px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#222;font-size:16px;line-height:1.5">
-        <tr><td align="center" style="background:#1e293b;padding:20px">
-          <img src="${SITE_URL}/CFR_LOGO_25.png" alt="Churchwell Family Reunion" width="120" style="display:block;max-width:120px;height:auto;border:0">
+        <tr><td align="center" style="background:#ffffff;padding:24px 20px 8px;border-bottom:4px solid #dc2626">
+          <a href="${SITE_URL}"><img src="${SITE_URL}/favicon.png" alt="The Churchwell Family Reunion" width="120" height="120" style="display:block;width:120px;height:120px;border:0"></a>
         </td></tr>
         <tr><td style="padding:28px 28px 12px">${inner}</td></tr>
-        <tr><td style="padding:16px 28px 28px;font-size:12px;color:#777;border-top:1px solid #eee">
-          You're getting this because you're on the Churchwell Family Reunion email list.
-          Reply to this email to reach the reunion organizers.<br>
-          <a href="${SITE_URL}" style="color:#777">churchwellreunion.com</a>
-          ${unsubscribeUrl ? ` &middot; <a href="${unsubscribeUrl}" style="color:#777">Unsubscribe</a>` : ''}
-        </td></tr>
       </table>
     </td></tr>
   </table>

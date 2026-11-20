@@ -377,6 +377,25 @@ function Compose({ subscribed, onSent }: { subscribed: Member[]; onSent: () => v
 
 // ---------- Mailing list ----------
 
+const csvCell = (v: unknown) => {
+  const s = v == null ? '' : v instanceof Date ? v.toISOString() : String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+/**
+ * Read an uploaded list as CSV text for /api/admin/mailing-list/import.
+ * Excel files are converted in the browser (first sheet only), so the server
+ * only ever parses one format.
+ */
+async function fileToCsv(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.xls')) throw new Error('Old .xls files are not supported. In Excel, use File → Save As → .xlsx (or CSV).');
+  if (!name.endsWith('.xlsx')) return file.text();
+  const { readSheet } = await import('read-excel-file/browser');
+  const rows = await readSheet(file);
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
 const STATUS_STYLE: Record<MemberStatus, string> = {
   subscribed: 'text-green-300',
   unsubscribed: 'text-gray-400',
@@ -438,16 +457,15 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
       await reload();
     });
 
-  const pickFile = async (file: File) => {
-    const csv = await file.text();
+  const pickFile = (file: File) =>
     run('preview', async () => {
+      const csv = await fileToCsv(file);
       const p = await api<Omit<NonNullable<typeof preview>, 'csv'>>('/api/admin/mailing-list/import', {
         method: 'POST',
         body: JSON.stringify({ csv, dryRun: true }),
       });
       setPreview({ ...p, csv });
     });
-  };
 
   const confirmImport = () =>
     run('import', async () => {
@@ -484,12 +502,12 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
         </Button>
         <Button size="sm" variant="outline" className={outlineBtn} onClick={() => fileRef.current?.click()} disabled={!!busy}>
           {busy === 'preview' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileUp className="w-4 h-4 mr-1" />}
-          Import Google Group CSV
+          Import list (Excel or CSV)
         </Button>
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -499,8 +517,9 @@ function MailingList({ members, loading, reload }: { members: Member[]; loading:
         />
       </div>
       <p className="text-xs text-gray-500">
-        Sync pulls emails from the family tree, every year&apos;s sign-ups and site accounts. To export the Google Group: open the group →
-        Members → Export members (CSV). Neither one re-subscribes anyone who unsubscribed.
+        Sync pulls emails from the family tree, every year&apos;s sign-ups and site accounts. Import takes an Excel (.xlsx) or CSV file
+        with an Email column, plus optional Name or First Name / Last Name columns (a Google Groups member export works too). You
+        see a preview before anything is added, and neither one re-subscribes anyone who unsubscribed.
       </p>
 
       {preview && (

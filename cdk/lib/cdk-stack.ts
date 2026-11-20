@@ -147,7 +147,7 @@ export class CfrNextStack extends Stack {
         SES_FROM_ADDRESS: `reunion@${EMAIL_DOMAIN}`,
         SES_FROM_NAME: 'Churchwell Family Reunion',
         SES_REPLY_TO: 'mudge.andrew@gmail.com',
-        PUBLIC_SITE_URL: `https://${EMAIL_DOMAIN}`,
+        PUBLIC_SITE_URL: `https://www.${EMAIL_DOMAIN}`, // www is canonical; the bare domain redirects
       },
       timeout: Duration.minutes(15),
       memorySize: 1024,
