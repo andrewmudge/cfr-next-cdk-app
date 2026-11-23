@@ -193,6 +193,27 @@ export async function getRegisteredPeople(year: string): Promise<RegisteredPerso
   }));
 }
 
+/**
+ * Everyone signed up this year for one activity (e.g. 'cornhole'), with gender from their
+ * sign-up row, falling back to their profile. Missing gender stays undefined (needs review).
+ */
+export async function getActivitySignups(
+  year: string,
+  activity: ActivityId
+): Promise<{ personId: string; name: string; gender?: GenderId }[]> {
+  const [rows, members] = await Promise.all([
+    queryYear<{ personId: string; displayName: string; activities?: ActivityId[]; gender?: GenderId }>(year, 'PERSON#'),
+    listFamilyMemberRecords(),
+  ]);
+  const byId = new Map(members.map((m) => [m.personId, m]));
+  return rows
+    .filter((r) => r.activities?.includes(activity))
+    .map((r) => {
+      const m = byId.get(r.personId);
+      return { personId: r.personId, name: m?.displayName ?? r.displayName, gender: r.gender ?? m?.gender };
+    });
+}
+
 export async function getRegisteredPerson(year: string, personId: string): Promise<RegisteredPerson | null> {
   const out = await docClient.send(
     new QueryCommand({
