@@ -117,10 +117,7 @@ export default function LateAdd({ game, year, view, onChange }: { game: GameId; 
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add a late player</DialogTitle>
-            <DialogDescription>
-              For someone who missed sign-up. Everyone keeps their teams. If someone is waiting for a partner, the new player teams up with
-              them. Otherwise they wait for a wildcard partner and the bracket is redrawn. You can add people until the first game starts.
-            </DialogDescription>
+            <DialogDescription className="sr-only">Add someone who missed sign-up.</DialogDescription>
           </DialogHeader>
 
           {!pick && !guest ? (
@@ -128,6 +125,13 @@ export default function LateAdd({ game, year, view, onChange }: { game: GameId; 
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && q.trim() && results.length === 0 && people) {
+                    setGuest(true);
+                    setGuestName(q.trim());
+                  }
+                }}
+                enterKeyHint="next"
                 placeholder="Type their name…"
                 aria-label="Search the family list"
                 autoFocus
@@ -161,16 +165,18 @@ export default function LateAdd({ game, year, view, onChange }: { game: GameId; 
                   })}
                 </ul>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setGuest(true);
-                  setGuestName(q.trim());
-                }}
-                className="min-h-[44px] text-sm font-medium text-red-700 underline-offset-2 hover:underline"
-              >
-                Not in the family list? Type their name instead
-              </button>
+              {q.trim().length > 0 && (
+                <Button
+                  variant="outline"
+                  className="h-auto min-h-[48px] w-full whitespace-normal border-2 text-base"
+                  onClick={() => {
+                    setGuest(true);
+                    setGuestName(q.trim());
+                  }}
+                >
+                  <UserPlus className="mr-2 h-4 w-4 shrink-0" /> Add &ldquo;{q.trim()}&rdquo; (not in the family list)
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -193,8 +199,8 @@ export default function LateAdd({ game, year, view, onChange }: { game: GameId; 
               {gender && (
                 <p className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">
                   {waitingFor(gender)
-                    ? `They'll team up with ${waitingFor(gender)}, who is waiting for a partner.`
-                    : `Nobody is waiting for a ${gender === 'M' ? 'man' : 'woman'}, so they'll team up with the first ${gender === 'M' ? 'woman' : 'man'} knocked out. The bracket will be redrawn (teams stay the same).`}
+                    ? `Partners with ${waitingFor(gender)}.`
+                    : `Joins as a wildcard. The bracket will be redrawn.`}
                 </p>
               )}
               <div className="flex gap-2">
