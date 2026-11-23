@@ -504,6 +504,12 @@ export function apply(prev: TournamentState, cmd: Command, actor: Actor, ctx: Ct
     }
 
     case 'startMatch': {
+      // Putting the first game on a lane starts a published tournament.
+      if (s.status === 'READY') {
+        s.status = 'IN_PROGRESS';
+        s.startedAt = ctx.now;
+        log('started');
+      }
       playing();
       const m = getMatch(s, cmd.matchId);
       const name = GAMES[s.game].laneName.toLowerCase();

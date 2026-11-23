@@ -387,6 +387,15 @@ describe('lanes (boards / pits)', () => {
     expect(v.onDeck).toEqual([order[4], order[6], order[7]]);
   });
 
+  it('putting the first game on a lane starts a published tournament', () => {
+    let s = setup(4, 4, { start: false });
+    expect(s.status).toBe('READY');
+    s = run(s, { type: 'startMatch', matchId: 'r1m0', lane: 1 }, manager);
+    expect(s.status).toBe('IN_PROGRESS');
+    expect(s.startedAt).toBeTruthy();
+    expect(s.matches.find((m) => m.id === 'r1m0')!.status).toBe('live');
+  });
+
   it('rolling back a live game frees its lane', () => {
     let s = setup(4, 4);
     s = run(s, { type: 'completeMatch', matchId: 'r1m0', scoreA: 21, scoreB: 3 }, manager);

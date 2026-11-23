@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, KeyRound, Loader2, LogOut, Minus, Plus, Settings, Sparkles } from 'lucide-react';
+import { ArrowLeft, KeyRound, Loader2, LogOut, Minus, Pause, Play, Plus, Settings, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -107,6 +107,7 @@ export default function TournamentDetail({ game }: { game: GameId }) {
                   </>
                 )}
               </div>
+              {staff && <RunControl game={game} year={year} status={view.status} onChange={accept} />}
             </header>
 
             {view.champion && (
@@ -162,6 +163,56 @@ export default function TournamentDetail({ game }: { game: GameId }) {
       {view && <MatchInfoDialog view={view} match={info} onClose={() => setInfo(null)} />}
     </div>
   );
+}
+
+/** Start / pause / resume for managers and admins, right on the tournament page. */
+function RunControl({
+  game,
+  year,
+  status,
+  onChange,
+}: {
+  game: GameId;
+  year: string;
+  status: TournamentView['status'];
+  onChange: ReturnType<typeof useTournament>['accept'];
+}) {
+  const [busy, setBusy] = useState(false);
+  const run = async (type: 'start' | 'pause' | 'resume', msg: string) => {
+    setBusy(true);
+    try {
+      const r = await sendCommand(game, year, { type });
+      onChange(r.view, r.role);
+      toast.success(msg);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const spin = busy && <Loader2 className="mr-2 h-5 w-5 animate-spin" />;
+  if (status === 'READY')
+    return (
+      <div className="mt-3 space-y-1">
+        <Button className="w-full min-h-[56px] bg-red-600 text-lg hover:bg-red-700" disabled={busy} onClick={() => run('start', 'Tournament started.')}>
+          {spin || <Play className="mr-2 h-5 w-5" />} Start tournament
+        </Button>
+        <p className="text-center text-xs text-slate-500">Or just tap a game below and put it on a pit or board. That starts it too.</p>
+      </div>
+    );
+  if (status === 'PAUSED')
+    return (
+      <Button className="mt-3 w-full min-h-[56px] bg-red-600 text-lg hover:bg-red-700" disabled={busy} onClick={() => run('resume', 'Resumed.')}>
+        {spin || <Play className="mr-2 h-5 w-5" />} Resume tournament
+      </Button>
+    );
+  if (status === 'IN_PROGRESS')
+    return (
+      <Button variant="outline" className="mt-3 min-h-[44px]" disabled={busy} onClick={() => run('pause', 'Paused.')}>
+        {spin || <Pause className="mr-2 h-4 w-4" />} Pause
+      </Button>
+    );
+  return null;
 }
 
 function LaneCounter({
