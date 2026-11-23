@@ -7,6 +7,7 @@ import { can, type Command } from '@/lib/tournament/engine';
 import { badRequest, errorResponse, noStore, parseGame, parseYear } from '@/lib/tournament/api';
 import { getActivitySignups, listFamilyMemberRecords } from '@/lib/reunion-db';
 import { GENDER_IDS } from '@/lib/reunion-config';
+import { MAX_LANES } from '@/lib/tournament/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,8 @@ const clientCommand = z.discriminatedUnion('type', [
   z.object({ type: z.literal('complete') }),
   z.object({ type: z.literal('cancel') }),
   z.object({ type: z.literal('reopen') }),
-  z.object({ type: z.literal('startMatch'), matchId: id }),
+  z.object({ type: z.literal('startMatch'), matchId: id, lane: z.number().int().min(1).max(MAX_LANES).optional() }),
+  z.object({ type: z.literal('setLanes'), lanes: z.number().int().min(1).max(MAX_LANES) }),
   z.object({ type: z.literal('saveScore'), matchId: id, scoreA: score, scoreB: score }),
   z.object({ type: z.literal('completeMatch'), matchId: id, scoreA: score, scoreB: score }),
   z.object({ type: z.literal('correctMatch'), matchId: id, scoreA: score, scoreB: score, rollback: z.boolean().optional() }),

@@ -5,7 +5,9 @@ import { generateTeams, isEligible } from './teams';
 import { planBracket } from './plan';
 import {
   GAMES,
+  MAX_LANES,
   TournamentError,
+  laneCount,
   type Actor,
   type GameId,
   type Gender,
@@ -30,6 +32,7 @@ export type Command =
   | { type: 'setExtrasAsAlternates'; value: boolean }
   | { type: 'makePlan' }
   | { type: 'setTargetScore'; targetScore: number }
+  | { type: 'setLanes'; lanes: number }
   | { type: 'setManagerPassword'; hash: string }
   // ---- Lifecycle ----
   | { type: 'publish' }
@@ -41,7 +44,7 @@ export type Command =
   | { type: 'cancel' }
   | { type: 'reopen' }
   // ---- Play (managers) ----
-  | { type: 'startMatch'; matchId: string }
+  | { type: 'startMatch'; matchId: string; lane?: number }
   | { type: 'saveScore'; matchId: string; scoreA: number; scoreB: number }
   | { type: 'completeMatch'; matchId: string; scoreA: number; scoreB: number }
   | { type: 'correctMatch'; matchId: string; scoreA: number; scoreB: number; rollback?: boolean }
@@ -62,6 +65,7 @@ export const REQUIRED_ROLE: Record<CommandType, Role> = {
   setExtrasAsAlternates: 'admin',
   makePlan: 'admin',
   setTargetScore: 'admin',
+  setLanes: 'manager',
   setManagerPassword: 'admin',
   publish: 'admin',
   unpublish: 'admin',
@@ -107,6 +111,7 @@ export function newTournament(year: string, game: GameId, now: string): Tourname
     name: `${year} ${GAMES[game].label} Tournament`,
     status: 'DRAFT',
     targetScore: GAMES[game].defaultTarget,
+    lanes: GAMES[game].defaultLanes,
     participants: [],
     teams: [],
     extras: [],
@@ -271,6 +276,7 @@ function resetDownstream(s: TournamentState, m: Match, ev: TournamentEvent[], ct
   m.winnerTeamId = m.loserTeamId = undefined;
   m.startedAt = m.completedAt = m.completedBy = undefined;
   m.completedSeq = undefined;
+  m.lane = undefined;
   m.version++;
   m.history.push({ at: ctx.now, by: actor.id, scoreA: 0, scoreB: 0, note: 'Rolled back' });
   if (m.next) advance(s, m, undefined, ev, ctx);
@@ -500,17 +506,49 @@ export function apply(prev: TournamentState, cmd: Command, actor: Actor, ctx: Ct
     case 'startMatch': {
       playing();
       const m = getMatch(s, cmd.matchId);
+      const name = GAMES[s.game].laneName.toLowerCase();
+      const busy = new Set(s.matches.filter((x) => x.status === 'live' && x.id !== m.id && x.lane).map((x) => x.lane!));
+      if (cmd.lane !== undefined && (!Number.isInteger(cmd.lane) || cmd.lane < 1 || cmd.lane > laneCount(s))) {
+        fail(`There is no ${name} ${cmd.lane}.`);
+      }
       if (m.status === 'live') {
-        changed = false;
+        // Already playing: either a repeat tap, or moving it to another lane.
+        if (cmd.lane === undefined || cmd.lane === m.lane) {
+          changed = false;
+          break;
+        }
+        if (busy.has(cmd.lane)) fail(`${GAMES[s.game].laneName} ${cmd.lane} is in use.`);
+        log('match_moved', { matchId: m.id, before: m.lane, after: cmd.lane });
+        m.lane = cmd.lane;
+        m.version++;
         break;
       }
       if (m.status !== 'ready') fail(waitingReason(s, m));
+      const free = freeLanes(s);
+      if (free.length === 0) fail(`All ${laneCount(s)} ${name}s are in use. Finish a game first, or add a ${name}.`);
+      const lane = cmd.lane ?? free[0];
+      if (busy.has(lane)) fail(`${GAMES[s.game].laneName} ${lane} is in use.`);
       m.status = 'live';
+      m.lane = lane;
       m.startedAt = ctx.now;
       m.scoreA ??= 0;
       m.scoreB ??= 0;
       m.version++;
-      log('match_started', { matchId: m.id });
+      log('match_started', { matchId: m.id, after: { lane } });
+      break;
+    }
+    case 'setLanes': {
+      if (s.status === 'COMPLETED' || s.status === 'CANCELLED') fail('This tournament is finished.');
+      if (!Number.isInteger(cmd.lanes) || cmd.lanes < 1 || cmd.lanes > MAX_LANES) fail(`Pick from 1 to ${MAX_LANES}.`);
+      const name = GAMES[s.game].laneName.toLowerCase();
+      const inUse = s.matches.filter((x) => x.status === 'live' && (x.lane ?? 0) > cmd.lanes);
+      if (inUse.length) fail(`A game is still being played on ${name} ${inUse[0].lane}. Finish or move it first.`);
+      if (laneCount(s) === cmd.lanes) {
+        changed = false;
+        break;
+      }
+      log('lanes_set', { before: laneCount(s), after: cmd.lanes });
+      s.lanes = cmd.lanes;
       break;
     }
     case 'saveScore': {
@@ -680,6 +718,12 @@ export function apply(prev: TournamentState, cmd: Command, actor: Actor, ctx: Ct
   s.version = prev.version + 1;
   assertInvariants(s);
   return { state: s, events: ev, changed: true };
+}
+
+/** Lanes (boards / pits) with no game being played, lowest first. */
+export function freeLanes(s: TournamentState): number[] {
+  const busy = new Set(s.matches.filter((m) => m.status === 'live' && m.lane).map((m) => m.lane!));
+  return Array.from({ length: laneCount(s) }, (_, i) => i + 1).filter((l) => !busy.has(l));
 }
 
 /** Wildcard placeholders for the current extras (one per extra), unless extras sit out as alternates. */

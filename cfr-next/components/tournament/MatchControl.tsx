@@ -132,6 +132,10 @@ function Control({
   const paused = view.status === 'PAUSED';
   const finished = view.status === 'COMPLETED';
   const wildcards = pendingWildcards(view, m);
+  const laneWord = view.laneName.toLowerCase();
+  const freeLanes = view.laneBoard.filter((b) => !b.liveMatchId).map((b) => b.lane);
+  // The lane this game is queued for, else the first free one.
+  const suggestedLane = view.laneBoard.find((b) => b.nextMatchId === m.id)?.lane ?? freeLanes[0];
 
   const run = async (label: string, command: Record<string, unknown> & { type: string }, opts: { version?: boolean } = {}) => {
     setBusy(label);
@@ -253,14 +257,53 @@ function Control({
 
       {/* Actions */}
       <div className="space-y-2">
-        {m.status === 'ready' && (
-          <Button
-            className="w-full min-h-[60px] bg-red-600 text-lg hover:bg-red-700"
-            disabled={!!busy || paused}
-            onClick={() => run('start', { type: 'startMatch', matchId: m.id }, { version: true })}
-          >
-            {busy === 'start' ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Start game'}
-          </Button>
+        {m.status === 'ready' &&
+          (freeLanes.length === 0 ? (
+            <p className="rounded-xl bg-white p-4 text-center text-slate-700 shadow-sm">
+              All {view.lanes} {laneWord}s are in use. Finish a game first, or add a {laneWord} on the tournament page.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-center text-sm font-medium text-slate-600">Start on which {laneWord}?</p>
+              <div className={cn('grid gap-2', freeLanes.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+                {freeLanes.map((lane) => (
+                  <Button
+                    key={lane}
+                    className={cn(
+                      'min-h-[60px] text-lg',
+                      lane === suggestedLane ? 'bg-red-600 hover:bg-red-700' : 'bg-white text-slate-800 border-2 border-slate-300 hover:bg-slate-50'
+                    )}
+                    disabled={!!busy || paused}
+                    onClick={() => run('start', { type: 'startMatch', matchId: m.id, lane }, { version: true })}
+                  >
+                    {busy === 'start' ? <Loader2 className="h-5 w-5 animate-spin" /> : `${view.laneName} ${lane}`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        {m.status === 'live' && m.lane && (
+          <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-slate-600">
+            <span>
+              Playing on <strong className="text-slate-900">{view.laneName} {m.lane}</strong>
+            </span>
+            {freeLanes.length > 0 && !paused && (
+              <>
+                <span className="text-slate-400">· move to</span>
+                {freeLanes.map((lane) => (
+                  <button
+                    key={lane}
+                    type="button"
+                    disabled={!!busy}
+                    onClick={() => run('move', { type: 'startMatch', matchId: m.id, lane }, { version: true })}
+                    className="min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    {lane}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
         )}
         {m.status === 'live' && (
           <>

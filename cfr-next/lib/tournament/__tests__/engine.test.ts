@@ -328,6 +328,69 @@ describe('lifecycle and permissions', () => {
   });
 });
 
+describe('lanes (boards / pits)', () => {
+  it('horseshoes has 2 pits: two games at once, a third waits for a free pit', () => {
+    let s = setup(8, 8, { game: 'horseshoes' });
+    expect(buildView(s, 'spectator').lanes).toBe(2);
+    expect(buildView(s, 'spectator').laneName).toBe('Pit');
+    const ready = s.matches.filter((m) => m.status === 'ready').sort((a, b) => a.order - b.order);
+    s = run(s, { type: 'startMatch', matchId: ready[0].id }, manager);
+    s = run(s, { type: 'startMatch', matchId: ready[1].id }, manager);
+    expect(s.matches.find((m) => m.id === ready[0].id)!.lane).toBe(1);
+    expect(s.matches.find((m) => m.id === ready[1].id)!.lane).toBe(2);
+    expect(err(() => run(s, { type: 'startMatch', matchId: ready[2].id }, manager)).message).toMatch(/All 2 pits are in use/);
+    // Finishing a game frees its pit; the next game takes it.
+    s = run(s, { type: 'completeMatch', matchId: ready[0].id, scoreA: 21, scoreB: 4 }, manager);
+    s = run(s, { type: 'startMatch', matchId: ready[2].id }, manager);
+    expect(s.matches.find((m) => m.id === ready[2].id)!.lane).toBe(1);
+  });
+
+  it('a game cannot go on a busy lane; a live game can move to a free one', () => {
+    let s = setup(8, 8);
+    s = run(s, { type: 'setLanes', lanes: 3 }, manager);
+    const [a, b] = s.matches.filter((m) => m.status === 'ready');
+    s = run(s, { type: 'startMatch', matchId: a.id, lane: 2 }, manager);
+    expect(err(() => run(s, { type: 'startMatch', matchId: b.id, lane: 2 }, manager)).message).toMatch(/Board 2 is in use/);
+    expect(err(() => run(s, { type: 'startMatch', matchId: b.id, lane: 4 }, manager)).message).toMatch(/no board 4/);
+    s = run(s, { type: 'startMatch', matchId: a.id, lane: 3 }, manager);
+    expect(s.matches.find((m) => m.id === a.id)!.lane).toBe(3);
+  });
+
+  it('cornhole boards: the manager can add or remove boards, but not one in use', () => {
+    let s = setup(8, 8);
+    s = run(s, { type: 'setLanes', lanes: 4 }, manager);
+    const ready = s.matches.filter((m) => m.status === 'ready');
+    s = run(s, { type: 'startMatch', matchId: ready[0].id, lane: 4 }, manager);
+    expect(err(() => run(s, { type: 'setLanes', lanes: 3 }, manager)).message).toMatch(/board 4/);
+    expect(err(() => run(s, { type: 'setLanes', lanes: 0 }, manager)).message).toMatch(/1 to/);
+    expect(err(() => run(s, { type: 'setLanes', lanes: 2 }, spectator)).code).toBe('forbidden');
+  });
+
+  it('up next fills each open lane in play order; the rest are on deck', () => {
+    let s = setup(16, 16, { game: 'horseshoes' }); // 8 first-round games, 2 pits
+    let v = buildView(s, 'spectator');
+    const order = s.matches.filter((m) => m.status === 'ready').sort((a, b) => a.order - b.order).map((m) => m.id);
+    expect(v.laneBoard.map((b) => b.nextMatchId)).toEqual(order.slice(0, 2));
+    expect(v.onDeck).toEqual(order.slice(2));
+    s = run(s, { type: 'startMatch', matchId: order[0] }, manager);
+    v = buildView(s, 'spectator');
+    expect(v.laneBoard[0]).toEqual({ lane: 1, liveMatchId: order[0] });
+    expect(v.laneBoard[1].nextMatchId).toBe(order[1]);
+    expect(v.onDeck).toEqual(order.slice(2));
+  });
+
+  it('rolling back a live game frees its lane', () => {
+    let s = setup(4, 4);
+    s = run(s, { type: 'completeMatch', matchId: 'r1m0', scoreA: 21, scoreB: 3 }, manager);
+    s = run(s, { type: 'completeMatch', matchId: 'r1m1', scoreA: 21, scoreB: 3 }, manager);
+    s = run(s, { type: 'startMatch', matchId: 'r2m0' }, manager);
+    s = run(s, { type: 'correctMatch', matchId: 'r1m0', scoreA: 3, scoreB: 21, rollback: true }, admin);
+    const final = s.matches.find((m) => m.id === 'r2m0')!;
+    expect(final.status).toBe('ready');
+    expect(final.lane).toBeUndefined();
+  });
+});
+
 describe('large tournaments', () => {
   it('40+ teams: 64-spot bracket plays out, and the stored item stays far under the 400 KB limit', () => {
     for (const [men, women, teams, wild] of [

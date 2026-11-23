@@ -3,7 +3,7 @@
 import { activeTeamIds, eliminatedTeamIds, reenteredIds, wildcardCandidates } from './engine';
 import { needsReview } from './teams';
 import { roundLabel } from './plan';
-import { GAMES, type GameId, type Gender, type Match, type Role, type TournamentState, type TournamentStatus } from './types';
+import { GAMES, laneCount, type GameId, type Gender, type Match, type Role, type TournamentState, type TournamentStatus } from './types';
 
 export type TeamStatus = 'active' | 'eliminated' | 'champion';
 
@@ -70,6 +70,13 @@ export interface TournamentView {
   name: string;
   status: TournamentStatus;
   targetScore: number;
+  /** Boards (cornhole) / pits (horseshoes): how many games run at once. */
+  lanes: number;
+  laneName: string;
+  /** Each lane: the game on it now, or the game that should go on it next. */
+  laneBoard: { lane: number; liveMatchId?: string; nextMatchId?: string }[];
+  /** Ready games waiting for a free lane, in play order. */
+  onDeck: string[];
   version: number;
   updatedAt: string;
   rounds: number;
@@ -204,6 +211,9 @@ export function buildView(s: TournamentState, role: Role): TournamentView {
     name: s.name,
     status: s.status,
     targetScore: s.targetScore,
+    lanes: laneCount(s),
+    laneName: GAMES[s.game].laneName,
+    ...laneQueue(s),
     version: s.version,
     updatedAt: s.updatedAt,
     rounds,
@@ -281,6 +291,22 @@ export function buildView(s: TournamentState, role: Role): TournamentView {
     };
   }
   return view;
+}
+
+/** Who is on which lane now, which ready game goes to each open lane next, and the rest on deck. */
+function laneQueue(s: TournamentState) {
+  const n = laneCount(s);
+  const live = s.matches.filter((m) => m.status === 'live');
+  const ready = s.matches.filter((m) => m.status === 'ready').sort((a, b) => a.order - b.order);
+  const board: { lane: number; liveMatchId?: string; nextMatchId?: string }[] = Array.from({ length: n }, (_, i) => ({ lane: i + 1 }));
+  // Games started before lanes existed (no lane) take the first open spots.
+  for (const m of live) {
+    const spot = (m.lane && board[m.lane - 1] && !board[m.lane - 1].liveMatchId ? board[m.lane - 1] : undefined) ?? board.find((b) => !b.liveMatchId);
+    if (spot) spot.liveMatchId = m.id;
+  }
+  const queue = [...ready];
+  for (const b of board) if (!b.liveMatchId && queue.length) b.nextMatchId = queue.shift()!.id;
+  return { laneBoard: board, onDeck: queue.map((m) => m.id) };
 }
 
 /** Small summary for the landing page cards. */

@@ -135,17 +135,23 @@ export function MatchCard({
   onOpen,
   dense,
   className,
+  laneName,
 }: {
   view: Pick<TournamentView, 'teams'>;
   m: ViewMatch;
   onOpen?: (m: ViewMatch) => void;
   dense?: boolean;
   className?: string;
+  /** "Board" / "Pit": shows where a live game is being played. */
+  laneName?: string;
 }) {
   const body = (
     <>
       <div className="flex items-center justify-between text-[11px] uppercase tracking-wide">
-        <span className="font-semibold text-slate-500">{m.status === 'bye' ? m.roundLabel : `Game ${m.number}`}</span>
+        <span className="font-semibold text-slate-500">
+          {m.status === 'bye' ? m.roundLabel : `Game ${m.number}`}
+          {laneName && m.lane && m.status === 'live' && <span className="ml-1 text-red-600">· {laneName} {m.lane}</span>}
+        </span>
         <MatchStatusLabel m={m} />
       </div>
       {m.status === 'bye' ? (

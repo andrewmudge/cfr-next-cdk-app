@@ -8,8 +8,9 @@ export type Gender = GenderId; // 'M' | 'F'
 
 /** Games that can run a tournament. Add an entry here to support a new game. */
 export const GAMES = {
-  cornhole: { id: 'cornhole', label: 'Cornhole', emoji: '🌽', defaultTarget: 21 },
-  horseshoes: { id: 'horseshoes', label: 'Horseshoes', emoji: '🐎', defaultTarget: 21 },
+  // laneName: what a playing spot is called. defaultLanes: how many games run at once (manager can change it).
+  cornhole: { id: 'cornhole', label: 'Cornhole', emoji: '🌽', defaultTarget: 21, laneName: 'Board', defaultLanes: 2 },
+  horseshoes: { id: 'horseshoes', label: 'Horseshoes', emoji: '🐎', defaultTarget: 21, laneName: 'Pit', defaultLanes: 2 },
 } as const;
 export type GameId = keyof typeof GAMES;
 export const GAME_IDS = Object.keys(GAMES) as [GameId, ...GameId[]];
@@ -83,6 +84,8 @@ export interface Match {
   loserTeamId?: string;
   /** Where the winner goes. Absent on the final. */
   next?: { matchId: string; slot: 'a' | 'b' };
+  /** Board / pit number (1-based) while live, kept afterwards as "played on". */
+  lane?: number;
   /** Suggested play order (wildcard-dependent games come after the games that free up their players). */
   order: number;
   startedAt?: string;
@@ -110,6 +113,8 @@ export interface TournamentState {
   name: string;
   status: TournamentStatus;
   targetScore: number;
+  /** How many games can be played at once (boards / pits). Missing on older practice data: use laneCount(). */
+  lanes?: number;
   participants: Participant[];
   teams: Team[];
   /** Unpaired participants after team generation (waiting for a wildcard, or alternates). */
@@ -133,6 +138,9 @@ export interface TournamentState {
   startedAt?: string;
   completedAt?: string;
 }
+
+export const MAX_LANES = 20;
+export const laneCount = (s: Pick<TournamentState, 'lanes' | 'game'>) => s.lanes ?? GAMES[s.game].defaultLanes;
 
 export type Role = 'spectator' | 'manager' | 'admin';
 

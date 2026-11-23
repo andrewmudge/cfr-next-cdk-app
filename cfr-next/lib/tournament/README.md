@@ -33,6 +33,9 @@ Participants come from that year's sign-ups (`PERSON#` rows whose activities inc
   - If not every extra fits, as many as fit become wildcards and the rest are **alternates**. The setup screen says so. The admin can also choose "Make them alternates instead".
   - A game with an unfilled wildcard can't start. The manager confirms the suggested player, or records "declined" and picks the next eligible loser or an alternate.
   - The server enforces the rest: the teammate must be the right gender, have lost a game, not be on an active team, and not have re-entered already.
+- **Lanes (boards / pits):** each tournament has a number of lanes, which is how many games can be played at once. Horseshoes uses "Pits" and defaults to 2. Cornhole uses "Boards" and also defaults to 2. A manager can change the count at any time on the tournament page, but never below a lane that has a game on it.
+  - Starting a game puts it on a free lane (the manager picks one, or it takes the first free lane). Two games can't share a lane, and nothing can start while every lane is busy. A live game can be moved to a free lane.
+  - The Matches tab lists each lane with its current game. An open lane shows the next ready game for it, and the rest are listed as "On deck", in bracket order. Wildcard games join the queue once their teammate is picked.
 - **Scoring:** the manager starts a game, taps the score up or down (it autosaves for spectators), and then confirms **Finish game**. Reaching the target score never ends a game on its own. Ties are refused. Finishing a game twice with the same score does nothing.
 - **Fixing results:**
   - A manager can fix a result until the winner's next game starts. The right team then moves on.

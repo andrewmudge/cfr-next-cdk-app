@@ -259,6 +259,7 @@ export default function TournamentSetup({ game }: { game: GameId }) {
           <h2 className={h2}>4. Manager &amp; rules</h2>
           <ManagerPassword has={view.hasManagerPassword} busy={busy} run={run} />
           <TargetScore value={view.targetScore} disabled={view.status === 'COMPLETED' || view.status === 'CANCELLED'} busy={busy} run={run} />
+          <LaneSetting lanes={view.lanes} laneName={view.laneName} disabled={view.status === 'COMPLETED' || view.status === 'CANCELLED'} busy={busy} run={run} />
         </section>
       )}
 
@@ -532,6 +533,26 @@ function TargetScore({ value, disabled, busy, run }: { value: number; disabled: 
   );
 }
 
+function LaneSetting({ lanes, laneName, disabled, busy, run }: { lanes: number; laneName: string; disabled: boolean; busy: string | null; run: Run }) {
+  const word = laneName.toLowerCase();
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-slate-700">
+        {laneName}s (games played at once): <strong>{lanes}</strong>
+      </p>
+      <div className="flex gap-2">
+        <Button variant="outline" className="min-h-[44px] min-w-[44px]" disabled={disabled || !!busy || lanes <= 1} onClick={() => run('lanes', { type: 'setLanes', lanes: lanes - 1 })} aria-label={`One less ${word}`}>
+          −
+        </Button>
+        <Button variant="outline" className="min-h-[44px] min-w-[44px]" disabled={disabled || !!busy || lanes >= 20} onClick={() => run('lanes', { type: 'setLanes', lanes: lanes + 1 })} aria-label={`One more ${word}`}>
+          +
+        </Button>
+      </div>
+      <p className="text-xs text-slate-500">The manager can change this during play too, from the tournament page.</p>
+    </div>
+  );
+}
+
 function DeleteButton({ game, year, onDone }: { game: GameId; year: string; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   return (
@@ -579,6 +600,8 @@ const EVENT_TEXT: Record<string, string> = {
   cancelled: 'Cancelled',
   reopened: 'Reopened',
   match_started: 'Started a game',
+  match_moved: 'Moved a game',
+  lanes_set: 'Changed the number of boards/pits',
   score_saved: 'Saved a score',
   match_completed: 'Finished a game',
   match_corrected: 'Fixed a result',

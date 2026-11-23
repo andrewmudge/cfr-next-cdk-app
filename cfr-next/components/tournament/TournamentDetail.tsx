@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, KeyRound, Loader2, LogOut, Settings, Sparkles } from 'lucide-react';
+import { ArrowLeft, KeyRound, Loader2, LogOut, Minus, Plus, Settings, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { currentReunionYear } from '@/lib/reunion-config';
-import { useTournament, useYearParam, withYear } from '@/lib/tournament/client';
+import { sendCommand, useTournament, useYearParam, withYear } from '@/lib/tournament/client';
 import type { GameId } from '@/lib/tournament/types';
 import type { TournamentView, ViewMatch, ViewTeam } from '@/lib/tournament/view';
 import BracketView from './BracketView';
@@ -21,7 +21,7 @@ export default function TournamentDetail({ game }: { game: GameId }) {
   const yearParam = useYearParam();
   const year = yearParam ?? currentReunionYear();
   const router = useRouter();
-  const { view, role, managerLogin, status, missing, refresh } = useTournament(game, yearParam);
+  const { view, role, managerLogin, status, missing, refresh, accept } = useTournament(game, yearParam);
   const [tab, setTab] = useState<Tab>('matches');
   const [manageOpen, setManageOpen] = useState(false);
   const [info, setInfo] = useState<ViewMatch | null>(null);
@@ -93,6 +93,9 @@ export default function TournamentDetail({ game }: { game: GameId }) {
                     <KeyRound className="mr-2 h-4 w-4" /> Manage
                   </Button>
                 )}
+                {staff && view.status !== 'COMPLETED' && view.status !== 'CANCELLED' && (
+                  <LaneCounter game={game} year={year} lanes={view.lanes} laneName={view.laneName} onChange={accept} />
+                )}
                 {role === 'manager' && (
                   <>
                     <span className="inline-flex min-h-[44px] items-center rounded-lg bg-emerald-50 px-3 text-sm font-medium text-emerald-800">
@@ -161,10 +164,63 @@ export default function TournamentDetail({ game }: { game: GameId }) {
   );
 }
 
+function LaneCounter({
+  game,
+  year,
+  lanes,
+  laneName,
+  onChange,
+}: {
+  game: GameId;
+  year: string;
+  lanes: number;
+  laneName: string;
+  onChange: ReturnType<typeof useTournament>['accept'];
+}) {
+  const [busy, setBusy] = useState(false);
+  const set = async (n: number) => {
+    setBusy(true);
+    try {
+      const r = await sendCommand(game, year, { type: 'setLanes', lanes: n });
+      onChange(r.view, r.role);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border-2 border-slate-200 bg-white px-1" role="group" aria-label={`Number of ${laneName.toLowerCase()}s`}>
+      <button
+        type="button"
+        aria-label={`One less ${laneName.toLowerCase()}`}
+        disabled={busy || lanes <= 1}
+        onClick={() => set(lanes - 1)}
+        className="flex h-11 w-11 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 disabled:opacity-30"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <span className="min-w-[5.5rem] text-center text-sm font-semibold text-slate-800" aria-live="polite">
+        {busy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : `${lanes} ${laneName.toLowerCase()}${lanes === 1 ? '' : 's'}`}
+      </span>
+      <button
+        type="button"
+        aria-label={`One more ${laneName.toLowerCase()}`}
+        disabled={busy || lanes >= 20}
+        onClick={() => set(lanes + 1)}
+        className="flex h-11 w-11 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 disabled:opacity-30"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 function MatchesView({ view, onOpen, staff }: { view: TournamentView; onOpen: (m: ViewMatch) => void; staff: boolean }) {
   const games = view.matches.filter((m) => m.status !== 'bye');
-  const live = games.filter((m) => m.status === 'live').sort((a, b) => a.order - b.order);
-  const upNext = games.filter((m) => m.status === 'ready').sort((a, b) => a.order - b.order);
+  const byIdM = new Map(view.matches.map((m) => [m.id, m]));
+  const onDeck = view.onDeck.map((id) => byIdM.get(id)!).filter(Boolean);
+  const playing = view.status === 'IN_PROGRESS' || view.status === 'PAUSED' || view.status === 'READY';
   const byRound = useMemo(() => {
     const map = new Map<number, ViewMatch[]>();
     for (const m of [...games].sort((a, b) => a.order - b.order)) map.set(m.round, [...(map.get(m.round) ?? []), m]);
@@ -178,19 +234,48 @@ function MatchesView({ view, onOpen, staff }: { view: TournamentView; onOpen: (m
         <h2 className={cn('text-sm font-bold uppercase tracking-wider', accent ? 'text-red-600' : 'text-slate-500')}>{title}</h2>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((m) => (
-            <MatchCard key={m.id} view={view} m={m} onOpen={onOpen} />
+            <MatchCard key={m.id} view={view} m={m} onOpen={onOpen} laneName={view.laneName} />
           ))}
         </div>
       </section>
     ) : null;
+  const anyLaneUsed = view.laneBoard.some((b) => b.liveMatchId || b.nextMatchId);
 
   return (
     <div className="space-y-6">
       {view.status === 'PAUSED' && (
         <p className="rounded-xl bg-slate-200 p-3 text-center text-sm font-medium text-slate-700">The tournament is paused for now.</p>
       )}
-      <Section title="Now playing" list={live} accent />
-      <Section title="Up next" list={upNext} />
+      {playing && anyLaneUsed && (
+        <section className="space-y-2" aria-label={`${view.laneName}s`}>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-red-600">On the {view.laneName.toLowerCase()}s</h2>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {view.laneBoard.map((b) => {
+              const m = b.liveMatchId ? byIdM.get(b.liveMatchId) : b.nextMatchId ? byIdM.get(b.nextMatchId) : undefined;
+              return (
+                <div key={b.lane} className="space-y-1">
+                  <p className="flex items-center justify-between px-1 text-xs font-semibold">
+                    <span className="text-slate-700">
+                      {view.laneName} {b.lane}
+                    </span>
+                    <span className={b.liveMatchId ? 'text-red-600' : m ? 'text-emerald-700' : 'text-slate-400'}>
+                      {b.liveMatchId ? 'Playing' : m ? 'Up next' : 'Open'}
+                    </span>
+                  </p>
+                  {m ? (
+                    <MatchCard view={view} m={m} onOpen={onOpen} />
+                  ) : (
+                    <div className="flex h-[108px] items-center justify-center rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-400">
+                      Nothing ready yet
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      <Section title="On deck" list={onDeck} />
       {staff && view.wildcards.some((w) => !w.teamId) && (
         <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
