@@ -96,6 +96,8 @@ export interface Result {
 }
 
 export const MAX_SCORE = 999;
+/** Autosaved in-progress scores kept on each game (the audit log keeps all of them). */
+export const MAX_SAVED_SCORES = 5;
 
 export function newTournament(year: string, game: GameId, now: string): TournamentState {
   return {
@@ -524,7 +526,14 @@ export function apply(prev: TournamentState, cmd: Command, actor: Actor, ctx: Ct
       const before = { scoreA: m.scoreA, scoreB: m.scoreB };
       m.scoreA = cmd.scoreA;
       m.scoreB = cmd.scoreB;
+      // Autosaves happen every few taps; keep only the latest few on the game (finals, fixes and
+      // rollbacks are always kept). Every save is still in the audit log. Keeps the item small for 40+ teams.
       m.history.push({ at: ctx.now, by: actor.id, scoreA: cmd.scoreA, scoreB: cmd.scoreB });
+      const saves = m.history.filter((h) => !h.note);
+      if (saves.length > MAX_SAVED_SCORES) {
+        const drop = new Set(saves.slice(0, saves.length - MAX_SAVED_SCORES));
+        m.history = m.history.filter((h) => !drop.has(h));
+      }
       m.version++;
       log('score_saved', { matchId: m.id, before, after: { scoreA: cmd.scoreA, scoreB: cmd.scoreB } });
       break;

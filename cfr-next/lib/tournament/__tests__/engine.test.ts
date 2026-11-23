@@ -328,6 +328,45 @@ describe('lifecycle and permissions', () => {
   });
 });
 
+describe('large tournaments', () => {
+  it('40+ teams: 64-spot bracket plays out, and the stored item stays far under the 400 KB limit', () => {
+    for (const [men, women, teams, wild] of [
+      [40, 40, 40, 0],
+      [45, 40, 45, 5],
+      [40, 48, 48, 8],
+    ]) {
+      const rng = seeded(men + women);
+      let s = newTournament('2099', 'cornhole', ctx().now);
+      const signups = [
+        ...Array.from({ length: men }, (_, i) => ({ personId: `ft_M${i}`, name: `Christopher Churchwell-${i}`, gender: 'M' as const })),
+        ...Array.from({ length: women }, (_, i) => ({ personId: `ft_F${i}`, name: `Elizabeth Churchwell-${i}`, gender: 'F' as const })),
+      ];
+      s = run(s, { type: 'importSignups', signups }, admin, rng);
+      s = run(s, { type: 'generateTeams' }, admin, rng);
+      s = run(s, { type: 'makePlan' }, admin, rng);
+      expect(s.plan!.size).toBe(64);
+      expect(s.plan!.wildcards).toHaveLength(wild);
+      s = run(s, { type: 'publish' }, admin, rng);
+      s = run(s, { type: 'start' }, manager, rng);
+      // Tap-by-tap games: ~35 autosaves each before the final score.
+      for (let g = 0; g < 200 && s.status === 'IN_PROGRESS'; g++) {
+        s = fillWildcards(s);
+        const m = nextReady(s);
+        if (!m) break;
+        s = run(s, { type: 'startMatch', matchId: m.id }, manager);
+        for (let k = 1; k <= 35; k++) s = run(s, { type: 'saveScore', matchId: m.id, scoreA: Math.ceil(k / 2), scoreB: Math.floor(k / 2) }, manager);
+        s = run(s, { type: 'completeMatch', matchId: m.id, scoreA: 21, scoreB: 17 }, manager);
+      }
+      expect(s.status).toBe('COMPLETED');
+      expect(s.teams).toHaveLength(teams);
+      expect(s.matches.filter((m) => m.status === 'done')).toHaveLength(teams - 1);
+      checkTeams(s);
+      const kb = Buffer.byteLength(JSON.stringify(s)) / 1024;
+      expect(kb).toBeLessThan(150); // DynamoDB item limit is 400 KB
+    }
+  }, 60_000);
+});
+
 describe('many random fields', () => {
   it('every size from 2 to 40 people with uneven genders plays out cleanly', () => {
     for (let men = 1; men <= 20; men++) {
