@@ -5,6 +5,7 @@ import {
   ACTIVITY_IDS,
   ADULT_RATE_IDS,
   AGE_GROUP_IDS,
+  GENDER_IDS,
   MAX_ATTENDEES,
   MAX_DOGS,
   currentReunionYear,
@@ -33,6 +34,7 @@ const schema = z
       .array(
         z.object({
           person: personRef,
+          gender: z.enum(GENDER_IDS, { message: 'Please pick male or female for everyone.' }),
           ageGroup: z.enum(AGE_GROUP_IDS, { message: 'Please pick an age group for everyone.' }),
           adultRate: z.enum(ADULT_RATE_IDS).optional(),
           activities: z.array(z.enum(ACTIVITY_IDS)).max(ACTIVITY_IDS.length),
@@ -99,6 +101,7 @@ export async function POST(req: NextRequest) {
       useContactOnFile: v.useContactOnFile,
       attendees: v.attendees.map((a) => ({
         person: a.person,
+        gender: a.gender,
         ageGroup: a.ageGroup,
         adultRate: a.adultRate,
         activities: a.activities,

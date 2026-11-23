@@ -78,6 +78,15 @@ export const ACTIVITY_IDS = ACTIVITIES.map((a) => a.id) as [ActivityId, ...Activ
 
 export const MAX_ATTENDEES = 25;
 
+// ---------- Gender (stored on the person's profile; used for mixed-team brackets) ----------
+
+export const GENDERS = [
+  { id: 'M', label: 'Male' },
+  { id: 'F', label: 'Female' },
+] as const;
+export type GenderId = (typeof GENDERS)[number]['id'];
+export const GENDER_IDS = GENDERS.map((g) => g.id) as [GenderId, ...GenderId[]];
+
 // ---------- Age groups & dues (amounts in cents, as Stripe expects) ----------
 
 export const AGE_GROUPS = [
@@ -159,6 +168,8 @@ export interface PublicPerson {
   familyName: string;
   nickname?: string;
   birthSurname?: string;
+  /** From the profile (already public via the family tree). Pre-fills the sign-up form. */
+  gender?: GenderId;
   /** Extra text to tell same-name people apart, e.g. "child of Bill & Sarah-Beth". */
   hint?: string;
 }

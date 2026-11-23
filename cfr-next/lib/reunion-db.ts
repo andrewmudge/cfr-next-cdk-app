@@ -22,6 +22,7 @@ import {
   type AdultRateId,
   type AgeGroupId,
   type DuesLine,
+  type GenderId,
   type PublicPerson,
   type RegisteredPerson,
 } from '@/lib/reunion-config';
@@ -58,7 +59,7 @@ export interface FamilyMemberRecord {
   partnerIds?: string[];
   /** Stored on both people. */
   friendIds?: string[];
-  gender?: 'M' | 'F';
+  gender?: GenderId;
   born?: number;
   died?: number;
   updatedAt?: string;
@@ -87,6 +88,7 @@ export interface RegisteredAttendee {
   personId: string;
   displayName: string;
   activities: ActivityId[];
+  gender?: GenderId; // missing on sign-ups made before gender was asked
   ageGroup?: AgeGroupId; // missing on sign-ups made before age groups existed
   adultRate?: AdultRateId;
   duesCents?: number;
@@ -129,6 +131,7 @@ export async function listPublicPeople(): Promise<PublicPerson[]> {
       familyName: m.familyName,
       nickname: m.nickname || undefined,
       birthSurname: m.birthSurname && m.birthSurname !== m.familyName ? m.birthSurname : undefined,
+      gender: m.gender,
     }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
@@ -221,7 +224,7 @@ export interface RegistrationInput {
   phone?: string;
   /** Use the submitter's email/phone on file instead of email/phone above. */
   useContactOnFile?: boolean;
-  attendees: { person: PersonRef; ageGroup: AgeGroupId; adultRate?: AdultRateId; activities: ActivityId[] }[];
+  attendees: { person: PersonRef; gender: GenderId; ageGroup: AgeGroupId; adultRate?: AdultRateId; activities: ActivityId[] }[];
   dogs: number;
   notes?: string;
 }
@@ -292,6 +295,7 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
 
   const attendees: {
     member: FamilyMemberRecord;
+    gender: GenderId;
     ageGroup: AgeGroupId;
     adultRate?: AdultRateId;
     activities: ActivityId[];
@@ -308,6 +312,7 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
     const allowed = allowedActivities(a.ageGroup);
     attendees.push({
       member,
+      gender: a.gender,
       ageGroup: a.ageGroup,
       adultRate: a.ageGroup === 'adult' ? a.adultRate ?? 'full' : undefined,
       activities: Array.from(new Set(a.activities)).filter((x) => allowed.includes(x)),
@@ -324,6 +329,7 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
     personId: a.member.personId,
     displayName: a.member.displayName,
     activities: a.activities,
+    gender: a.gender,
     ageGroup: a.ageGroup,
     adultRate: a.adultRate,
     duesCents: personDuesCents(a.ageGroup, a.adultRate),
@@ -342,6 +348,7 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
         personId: a.member.personId,
         displayName: a.member.displayName,
         activities: a.activities,
+        gender: a.gender,
         ageGroup: a.ageGroup,
         adultRate: a.adultRate,
         submissionId,
@@ -369,26 +376,41 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
     createdAt: now,
   };
 
+  // Save each attendee's gender on their profile. New people get it on their Put;
+  // existing people get an Update only when it changed.
+  const genderChanged = new Map<string, GenderId>();
+  for (const a of attendees) {
+    if (pendingNew.has(a.member.nameKey)) a.member.gender = a.gender;
+    else if (a.member.gender !== a.gender) genderChanged.set(a.member.personId, a.gender);
+  }
+
   const memberItems: Record<string, unknown>[] = Array.from(pendingNew.values()).map((m) => ({
     Put: { TableName: MEMBERS_TABLE, Item: m },
   }));
+  // One Update per existing person (a transaction can't touch the same key twice),
+  // so the submitter's contact change and gender change share an Update.
+  const updates = new Map<string, { sets: string[]; vals: Record<string, string> }>();
+  const addSet = (personId: string, expr: string, key: string, val: string) => {
+    const u = updates.get(personId) ?? { sets: [], vals: {} };
+    u.sets.push(expr);
+    u.vals[key] = val;
+    updates.set(personId, u);
+  };
   if (contactChanged && !pendingNew.has(submitter.nameKey)) {
-    const sets: string[] = [];
-    const vals: Record<string, string> = {};
-    if (email) {
-      sets.push('email = :e');
-      vals[':e'] = email;
-    }
-    if (phone) {
-      sets.push('phone = :p');
-      vals[':p'] = phone;
-    }
+    if (email) addSet(submitter.personId, 'email = :e', ':e', email);
+    if (phone) addSet(submitter.personId, 'phone = :p', ':p', phone);
+  }
+  for (const [personId, gender] of genderChanged) {
+    addSet(personId, 'gender = :g', ':g', gender);
+    addSet(personId, 'updatedAt = :u', ':u', now);
+  }
+  for (const [personId, u] of updates) {
     memberItems.push({
       Update: {
         TableName: MEMBERS_TABLE,
-        Key: { personId: submitter.personId },
-        UpdateExpression: `SET ${sets.join(', ')}`,
-        ExpressionAttributeValues: vals,
+        Key: { personId },
+        UpdateExpression: `SET ${u.sets.join(', ')}`,
+        ExpressionAttributeValues: u.vals,
       },
     });
   }
@@ -408,7 +430,7 @@ export async function createRegistration(input: RegistrationInput): Promise<Regi
     throw err;
   }
 
-  if (pendingNew.size || contactChanged) membersCache = null;
+  if (pendingNew.size || contactChanged || genderChanged.size) membersCache = null;
   return { ok: true, submissionId, attendees: attendeeSummary, lines: dues.lines, totalCents: dues.totalCents };
 }
 

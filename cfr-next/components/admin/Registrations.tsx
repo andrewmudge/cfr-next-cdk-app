@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ClipboardList, Download, Loader2, Lock, LockOpen, RefreshCw, Trash2, UserCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ACTIVITIES, formatDollars, rateLabel, type ActivityId, type AdultRateId, type AgeGroupId } from '@/lib/reunion-config';
+import { ACTIVITIES, formatDollars, rateLabel, type ActivityId, type AdultRateId, type AgeGroupId, type GenderId } from '@/lib/reunion-config';
 import { resetSignupsOpenCache } from '@/hooks/use-signups-open';
 
 interface Submission {
@@ -17,6 +17,7 @@ interface Submission {
     personId: string;
     displayName: string;
     activities: ActivityId[];
+    gender?: GenderId;
     ageGroup?: AgeGroupId;
     adultRate?: AdultRateId;
     duesCents?: number;
@@ -126,6 +127,7 @@ export default function Registrations() {
   const downloadCsv = () => {
     const header = [
       'Name',
+      'Gender',
       'Age group',
       'Dues',
       ...ACTIVITIES.map((a) => a.label),
@@ -140,6 +142,7 @@ export default function Registrations() {
     const money = (c?: number) => (c === undefined ? '' : (c / 100).toFixed(2));
     const rows = people.map((p) => [
       p.displayName,
+      p.gender ?? '',
       p.ageGroup ? rateLabel(p.ageGroup, p.adultRate) : '',
       money(p.duesCents),
       ...ACTIVITIES.map((a) => (p.activities.includes(a.id) ? 'Y' : '')),
@@ -329,7 +332,7 @@ export default function Registrations() {
                           {s.attendees.map((a) => (
                             <li key={a.personId}>
                               <span className="text-white">{a.displayName}</span>{' '}
-                              <span className="text-xs text-slate-400">({rateLabel(a.ageGroup, a.adultRate)})</span>{' '}
+                              <span className="text-xs text-slate-400">({[a.gender, rateLabel(a.ageGroup, a.adultRate)].filter(Boolean).join(', ')})</span>{' '}
                               <span className="text-gray-400">
                                 {a.activities.length
                                   ? ACTIVITIES.filter((x) => a.activities.includes(x.id)).map((x) => x.emoji).join(' ')

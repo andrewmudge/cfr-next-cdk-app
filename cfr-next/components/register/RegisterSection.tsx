@@ -8,9 +8,11 @@ import PersonCombobox, { formatRegistered, selectedKey, type SelectedPerson } fr
 import ActivityChips from './ActivityChips';
 import AlreadyRegisteredLookup from './AlreadyRegisteredLookup';
 import AgeGroupPicker from './AgeGroupPicker';
+import GenderPicker from './GenderPicker';
 import { formatPhoneInput, isValidUSPhone } from '@/lib/phone-utils';
 import {
   ACTIVITIES,
+  GENDERS,
   MAX_ATTENDEES,
   MAX_DOGS,
   currentReunionYear,
@@ -21,6 +23,7 @@ import {
   type AdultRateId,
   type AgeGroupId,
   type DuesLine,
+  type GenderId,
   type PublicPerson,
   type RegisteredPerson,
 } from '@/lib/reunion-config';
@@ -28,17 +31,19 @@ import {
 type Row = {
   key: string;
   person: SelectedPerson | null;
+  gender?: GenderId;
   ageGroup?: AgeGroupId;
   adultRate?: AdultRateId;
   activities: ActivityId[];
 };
 
-type Attendee = { person: SelectedPerson; ageGroup?: AgeGroupId; adultRate?: AdultRateId; activities: ActivityId[] };
+type Attendee = { person: SelectedPerson; gender?: GenderId; ageGroup?: AgeGroupId; adultRate?: AdultRateId; activities: ActivityId[] };
 
 interface Draft {
   submitter: SelectedPerson | null;
   email: string;
   phone: string;
+  selfGender?: GenderId;
   selfAgeGroup?: AgeGroupId;
   selfAdultRate?: AdultRateId;
   selfActivities: ActivityId[];
@@ -47,7 +52,7 @@ interface Draft {
 }
 
 // Drafts are per reunion year, so a half-filled form doesn't carry over after Labor Day.
-const draftKey = () => `cfr-register-draft-${currentReunionYear()}-v2`;
+const draftKey = () => `cfr-register-draft-${currentReunionYear()}-v3`;
 const newRow = (): Row => ({ key: Math.random().toString(36).slice(2), person: null, activities: [] });
 const emptyDraft = (): Draft => ({
   submitter: null,
@@ -153,6 +158,10 @@ export default function RegisterSection() {
     } catch {}
   }, [draft, step]);
 
+  /** Gender on the person's profile, to pre-fill the picker (new names start blank). */
+  const profileGender = (p: SelectedPerson | null): GenderId | undefined =>
+    p?.kind === 'existing' ? people.find((x) => x.id === p.personId)?.gender : undefined;
+
   const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const updateRow = (key: string, patch: Partial<Row>) =>
     setDraft((d) => ({ ...d, rows: d.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) }));
@@ -196,13 +205,14 @@ export default function RegisterSection() {
     if (draft.submitter && selfAttending) {
       list.push({
         person: draft.submitter,
+        gender: draft.selfGender,
         ageGroup: draft.selfAgeGroup,
         adultRate: draft.selfAdultRate,
         activities: draft.selfActivities,
       });
     }
     draft.rows.forEach(
-      (r) => r.person && list.push({ person: r.person, ageGroup: r.ageGroup, adultRate: r.adultRate, activities: r.activities })
+      (r) => r.person && list.push({ person: r.person, gender: r.gender, ageGroup: r.ageGroup, adultRate: r.adultRate, activities: r.activities })
     );
     return list;
   }, [draft, selfAttending]);
@@ -228,6 +238,8 @@ export default function RegisterSection() {
     if (askPhone && draft.phone.trim() && !isValidUSPhone(draft.phone)) return 'Phone number should be 10 digits.';
     if (attendees.length === 0) return 'Add at least one person who is coming.';
     if (attendees.length > MAX_ATTENDEES) return `Please register at most ${MAX_ATTENDEES} people at a time.`;
+    const noGender = attendees.find((a) => !a.gender);
+    if (noGender) return `Please pick male or female for ${noGender.person.displayName}.`;
     const noAge = attendees.find((a) => !a.ageGroup);
     if (noAge) return `Please pick an age group for ${noAge.person.displayName}.`;
     return null;
@@ -261,6 +273,7 @@ export default function RegisterSection() {
           useContactOnFile: usingOnFile,
           attendees: attendees.map((a) => ({
             person: toRef(a.person),
+            gender: a.gender,
             ageGroup: a.ageGroup,
             adultRate: a.ageGroup === 'adult' ? a.adultRate ?? 'full' : undefined,
             activities: a.activities,
@@ -459,7 +472,12 @@ export default function RegisterSection() {
                 <ul className="space-y-3">
                   {attendees.map((a) => (
                     <li key={selectedKey(a.person)} className="rounded-xl bg-slate-50 p-4">
-                      <p className="font-semibold text-slate-800">{a.person.displayName}</p>
+                      <p className="font-semibold text-slate-800">
+                        {a.person.displayName}{' '}
+                        <span className="text-sm font-normal text-slate-500">
+                          · {GENDERS.find((g) => g.id === a.gender)?.label}
+                        </span>
+                      </p>
                       <p className="text-sm text-slate-600">{activityLabel(a.activities)}</p>
                     </li>
                   ))}
@@ -528,7 +546,7 @@ export default function RegisterSection() {
                     people={people}
                     registered={registered}
                     value={draft.submitter}
-                    onChange={(p) => update({ submitter: p })}
+                    onChange={(p) => update({ submitter: p, selfGender: profileGender(p) })}
                     excludeKeys={new Set(draft.rows.filter((r) => r.person).map((r) => selectedKey(r.person!)))}
                     ariaLabel="Your name"
                     placeholder="Start typing your name…"
@@ -631,6 +649,8 @@ export default function RegisterSection() {
                     </p>
                   ) : (
                     <div className="space-y-3">
+                      <p className="font-medium text-slate-700">Gender</p>
+                      <GenderPicker value={draft.selfGender} onChange={(g) => update({ selfGender: g })} />
                       <p className="font-medium text-slate-700">Your age group</p>
                       <AgeGroupPicker
                         ageGroup={draft.selfAgeGroup}
@@ -687,7 +707,7 @@ export default function RegisterSection() {
                       people={people}
                       registered={registered}
                       value={row.person}
-                      onChange={(p) => updateRow(row.key, { person: p })}
+                      onChange={(p) => updateRow(row.key, { person: p, gender: profileGender(p) })}
                       excludeKeys={chosenKeys}
                       blockRegistered
                       onBlocked={blocked}
@@ -696,6 +716,8 @@ export default function RegisterSection() {
                     />
                     {row.person && (
                       <>
+                        <p className="text-sm text-slate-600">Gender</p>
+                        <GenderPicker value={row.gender} onChange={(g) => updateRow(row.key, { gender: g })} />
                         <p className="text-sm text-slate-600">Age group</p>
                         <AgeGroupPicker
                           ageGroup={row.ageGroup}
