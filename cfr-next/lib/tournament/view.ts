@@ -1,6 +1,6 @@
 // What the browser gets. Built from TournamentState: names only, never the password hash.
 
-import { activeTeamIds, eliminatedTeamIds, reenteredIds, wildcardCandidates } from './engine';
+import { activeTeamIds, canLateAdd, eliminatedTeamIds, reenteredIds, wildcardCandidates } from './engine';
 import { needsReview } from './teams';
 import { roundLabel } from './plan';
 import { GAMES, laneCount, type GameId, type Gender, type Match, type Role, type TournamentState, type TournamentStatus } from './types';
@@ -91,6 +91,8 @@ export interface TournamentView {
   wildcards: ViewWildcard[];
   counts: { men: number; women: number; needsReview: number; teams: number; extras: number };
   hasManagerPassword: boolean;
+  /** Published, and no game has gone on a lane yet: managers can still add someone who missed sign-up. */
+  lateAddOpen: boolean;
   /** Staff only: people free to sub in (in the tournament, not on a team that's still playing). */
   bench?: { personId: string; name: string; gender: Gender }[];
   /** Setup data: only for admins. */
@@ -234,6 +236,7 @@ export function buildView(s: TournamentState, role: Role): TournamentView {
       extras: s.extras.length,
     },
     hasManagerPassword: !!s.managerPasswordHash,
+    lateAddOpen: canLateAdd(s),
   };
 
   if (staff && s.matches.length) {

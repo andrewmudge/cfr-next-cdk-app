@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { runCommand, loadTournament } from '@/lib/tournament/store';
@@ -43,6 +44,8 @@ const clientCommand = z.discriminatedUnion('type', [
   z.object({ type: z.literal('fillWildcard'), wildcardId: id, personId: id }),
   z.object({ type: z.literal('declineWildcard'), wildcardId: id, personId: id }),
   z.object({ type: z.literal('substitute'), teamId: id, outPersonId: id, inPersonId: id }),
+  // From the family list (personId), or a guest who isn't in it (name).
+  z.object({ type: z.literal('lateAdd'), personId: id.optional(), name: z.string().trim().min(1).max(60).optional(), gender }),
 ]);
 
 const body = z.object({
@@ -86,6 +89,16 @@ export async function POST(req: NextRequest, { params }: Params) {
         const m = (await listFamilyMemberRecords()).find((x) => x.personId === c.personId);
         if (!m) return badRequest('That person was not found in the family list.');
         cmd = { type: 'addParticipant', personId: m.personId, name: m.displayName, gender: c.gender };
+        break;
+      }
+      case 'lateAdd': {
+        if (c.personId) {
+          const m = (await listFamilyMemberRecords()).find((x) => x.personId === c.personId);
+          if (!m) return badRequest('That person was not found in the family list.');
+          cmd = { type: 'lateAdd', personId: m.personId, name: m.displayName, gender: c.gender };
+        } else if (c.name) {
+          cmd = { type: 'lateAdd', personId: `guest-${randomUUID().slice(0, 8)}`, name: c.name, gender: c.gender };
+        } else return badRequest('Pick someone from the family list or type their name.');
         break;
       }
       case 'setManagerPassword':

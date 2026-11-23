@@ -13,6 +13,8 @@ import { sendCommand, useTournament, useYearParam, withYear } from '@/lib/tourna
 import type { GameId } from '@/lib/tournament/types';
 import type { TournamentView, ViewMatch, ViewTeam } from '@/lib/tournament/view';
 import BracketView from './BracketView';
+import FindPlayer from './FindPlayer';
+import LateAdd from './LateAdd';
 import { ChampionBanner, LiveIndicator, MatchCard, Skeleton, StatusPill, teamById } from './ui';
 
 type Tab = 'matches' | 'bracket' | 'teams';
@@ -93,6 +95,7 @@ export default function TournamentDetail({ game }: { game: GameId }) {
                     <KeyRound className="mr-2 h-4 w-4" /> Manage
                   </Button>
                 )}
+                {staff && view.lateAddOpen && <LateAdd game={game} year={year} view={view} onChange={accept} />}
                 {staff && view.status !== 'COMPLETED' && view.status !== 'CANCELLED' && (
                   <LaneCounter game={game} year={year} lanes={view.lanes} laneName={view.laneName} onChange={accept} />
                 )}
@@ -123,6 +126,7 @@ export default function TournamentDetail({ game }: { game: GameId }) {
               </div>
             ) : (
               <>
+                <FindPlayer view={view} onOpen={open} />
                 <div className="sticky top-0 z-20 -mx-4 mb-4 bg-slate-50/95 px-4 py-2 backdrop-blur">
                   <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200/70 p-1" role="tablist" aria-label="Views">
                     {(['matches', 'bracket', 'teams'] as Tab[]).map((t) => (

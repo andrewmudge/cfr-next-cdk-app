@@ -37,6 +37,11 @@ Participants come from that year's sign-ups (`PERSON#` rows whose activities inc
   - Starting a game puts it on a free lane (the manager picks one, or it takes the first free lane). Two games can't share a lane, and nothing can start while every lane is busy. A live game can be moved to a free lane.
   - The Matches tab shows **Playing now** (each lane and its game) and **Up next**: the next ready games in bracket order, one per lane (so 2 for horseshoes), even while every lane is busy. Wildcard games join the line once their teammate is picked.
   - Managers also see **Also ready**: the other games that can be played. If an up-next team isn't there, the manager can start one of those instead. The scoring screen warns that it's skipping ahead, and the skipped game stays at the front of Up next.
+- **Late adds:** someone who missed sign-up can be added by a manager or admin (**Add a late player** on the tournament page) after publishing, until the first game goes on a lane. They can be picked from the family list, or typed in as a guest. Existing teams never change.
+  - If someone of the other gender is waiting for a wildcard partner, the new player teams up with them in that spot, and nothing else in the bracket moves.
+  - Otherwise the new player waits for a wildcard partner and the bracket is redrawn to fit them. If a second late player of the other gender arrives, the two pair up.
+  - After the first game starts, use a substitute instead.
+- **Find your team:** anyone can search a name on the tournament page to see their partner, and their current or next game.
 - **Scoring:** the manager starts a game, taps the score up or down (it autosaves for spectators), and then confirms **Finish game**. Reaching the target score never ends a game on its own. Ties are refused. Finishing a game twice with the same score does nothing.
 - **Fixing results:**
   - A manager can fix a result until the winner's next game starts. The right team then moves on.

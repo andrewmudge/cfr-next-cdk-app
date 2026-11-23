@@ -479,3 +479,62 @@ describe('many random fields', () => {
     }
   });
 });
+
+describe('late adds (missed sign-up)', () => {
+  const wildSlots = (s: ReturnType<typeof setup>) => s.matches.flatMap((m) => [m.a, m.b]).filter((x) => x.source.type === 'wildcard').length;
+
+  it('pairs a late woman with the man waiting for a wildcard partner, without touching the bracket', () => {
+    let s = setup(5, 4, { start: false }); // 4 teams + 1 man waiting
+    expect(s.wildcards).toHaveLength(1);
+    const waiting = s.wildcards[0].waitingPersonId;
+    const before = s.matches.map((m) => [m.id, m.a.teamId, m.b.teamId]);
+    s = run(s, { type: 'lateAdd', personId: 'late1', name: 'Late Lady', gender: 'F' }, manager);
+    expect(s.teams).toHaveLength(5);
+    expect(s.teams.at(-1)).toMatchObject({ maleId: waiting, femaleId: 'late1' });
+    expect(s.wildcards).toHaveLength(0);
+    expect(s.extras).toEqual([]);
+    expect(wildSlots(s)).toBe(0);
+    // Every game that already had teams still has the same teams.
+    for (const [id, a, b] of before) {
+      const m = s.matches.find((x) => x.id === id)!;
+      if (a) expect(m.a.teamId).toBe(a);
+      if (b) expect(m.b.teamId).toBe(b);
+    }
+    s = run(s, { type: 'start' }, manager);
+    s = playOut(s);
+    expect(s.status).toBe('COMPLETED');
+    checkTeams(s);
+  });
+
+  it('a late add with nobody to pair with joins as a wildcard (teams kept, bracket redrawn); the next one pairs with them', () => {
+    let s = setup(4, 4, { start: false });
+    const teams = structuredClone(s.teams);
+    s = run(s, { type: 'lateAdd', personId: 'late1', name: 'Late Guy', gender: 'M' }, manager);
+    expect(s.teams).toEqual(teams);
+    expect(s.wildcards).toMatchObject([{ waitingPersonId: 'late1', neededGender: 'F' }]);
+    expect(wildSlots(s)).toBe(1);
+    s = run(s, { type: 'lateAdd', personId: 'late2', name: 'Late Gal', gender: 'F' }, manager);
+    expect(s.teams).toHaveLength(5);
+    expect(s.teams.at(-1)).toMatchObject({ maleId: 'late1', femaleId: 'late2' });
+    expect(wildSlots(s)).toBe(0);
+    s = playOut(run(s, { type: 'start' }, manager));
+    expect(s.status).toBe('COMPLETED');
+  });
+
+  it('works after Start as long as no game has gone on a lane; then it is closed', () => {
+    let s = setup(4, 4); // started
+    s = run(s, { type: 'lateAdd', personId: 'late1', name: 'Late Guy', gender: 'M' }, manager);
+    expect(s.wildcards).toHaveLength(1);
+    s = run(s, { type: 'startMatch', matchId: nextReady(s).id }, manager);
+    expect(err(() => run(s, { type: 'lateAdd', personId: 'late2', name: 'Too Late', gender: 'F' }, manager)).message).toMatch(/first game has started/);
+  });
+
+  it('refuses duplicates, drafts and spectators', () => {
+    const s = setup(4, 4, { start: false });
+    expect(err(() => run(s, { type: 'lateAdd', personId: 'm1', name: 'Again', gender: 'M' }, manager)).message).toMatch(/already/);
+    expect(err(() => run(s, { type: 'lateAdd', personId: 'zz', name: 'man 1 churchwell', gender: 'M' }, manager)).message).toMatch(/already/);
+    expect(err(() => run(s, { type: 'lateAdd', personId: 'zz', name: 'Z', gender: 'M' }, spectator)).code).toBe('forbidden');
+    const d = newTournament('2099', 'cornhole', ctx().now);
+    expect(err(() => run(d, { type: 'lateAdd', personId: 'zz', name: 'Z', gender: 'M' }, admin)).message).toMatch(/setup page/);
+  });
+});

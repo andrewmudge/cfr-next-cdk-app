@@ -50,7 +50,9 @@ export type Command =
   | { type: 'correctMatch'; matchId: string; scoreA: number; scoreB: number; rollback?: boolean }
   | { type: 'fillWildcard'; wildcardId: string; personId: string }
   | { type: 'declineWildcard'; wildcardId: string; personId: string }
-  | { type: 'substitute'; teamId: string; outPersonId: string; inPersonId: string };
+  | { type: 'substitute'; teamId: string; outPersonId: string; inPersonId: string }
+  // Someone who missed sign-up, after publishing but before the first game starts.
+  | { type: 'lateAdd'; personId: string; name: string; gender: Gender };
 
 export type CommandType = Command['type'];
 
@@ -82,7 +84,12 @@ export const REQUIRED_ROLE: Record<CommandType, Role> = {
   fillWildcard: 'manager',
   declineWildcard: 'manager',
   substitute: 'manager',
+  lateAdd: 'manager',
 };
+
+/** Late adds are allowed once the bracket is published, until the first game goes on a lane. */
+export const canLateAdd = (s: Pick<TournamentState, 'status' | 'matches'>) =>
+  (s.status === 'READY' || s.status === 'IN_PROGRESS' || s.status === 'PAUSED') && !s.matches.some((m) => m.startedAt || m.status === 'done');
 
 const RANK: Record<Role, number> = { spectator: 0, manager: 1, admin: 2 };
 export const can = (actor: Actor, type: CommandType) => RANK[actor.role] >= RANK[REQUIRED_ROLE[type]];
@@ -711,6 +718,58 @@ export function apply(prev: TournamentState, cmd: Command, actor: Actor, ctx: Ct
       t[key!] = inP!.personId;
       s.extras = s.extras.filter((x) => x !== inP!.personId);
       log('substitution', { teamId: t.id, personId: inP!.personId, before: cmd.outPersonId, after: cmd.inPersonId });
+      break;
+    }
+    case 'lateAdd': {
+      if (s.status === 'DRAFT') fail('The bracket isn\'t published yet. Add them on the setup page instead.');
+      if (!canLateAdd(s)) fail('The first game has started, so no one new can join. You can still swap someone in as a substitute.');
+      if (cmd.gender !== 'M' && cmd.gender !== 'F') fail('Pick man or woman.');
+      const name = cmd.name.trim();
+      if (!name) fail('Enter a name.');
+      const dup = s.participants.find((p) => p.personId === cmd.personId || p.name.trim().toLowerCase() === name.toLowerCase());
+      if (dup) fail(`${dup.name} is already in this tournament.`);
+      s.participants.push({ personId: cmd.personId, name, gender: cmd.gender, source: 'walkup' });
+      s.plan = undefined; // the old preview no longer matches; unpublishing means previewing again
+
+      // 1) Someone of the other gender is waiting for a wildcard partner: pair them up in that spot.
+      const w = s.extrasAsAlternates ? undefined : s.wildcards.find((x) => !x.teamId && x.neededGender === cmd.gender);
+      if (w) {
+        const t: Team =
+          cmd.gender === 'F'
+            ? { id: `t${s.nextTeamNo++}`, maleId: w.waitingPersonId, femaleId: cmd.personId }
+            : { id: `t${s.nextTeamNo++}`, maleId: cmd.personId, femaleId: w.waitingPersonId };
+        s.teams.push(t);
+        s.extras = s.extras.filter((x) => x !== w.waitingPersonId);
+        s.wildcards = s.wildcards.filter((x) => x !== w);
+        for (const m of s.matches)
+          for (const k of ['a', 'b'] as const)
+            if (m[k].source.type === 'wildcard' && (m[k].source as { wildcardId: string }).wildcardId === w.id) {
+              m[k] = { source: { type: 'team', teamId: t.id }, teamId: t.id };
+              m.version++;
+            }
+        for (const m of [...s.matches].sort((x, y) => x.round - y.round)) refresh(s, m, ev, ctx);
+        log('late_add', { personId: cmd.personId, teamId: t.id, after: { name, gender: cmd.gender, pairedWith: w.waitingPersonId } });
+        break;
+      }
+
+      // 2) Nobody to pair with: they wait for a wildcard partner. Teams stay; the bracket is redrawn to fit them.
+      s.extras.push(cmd.personId);
+      if (s.extrasAsAlternates) {
+        log('late_add', { personId: cmd.personId, after: { name, gender: cmd.gender, alternate: true } });
+        break;
+      }
+      const all = wildcardsFor(s);
+      let r = planBracket(s.teams, all, ctx.rng, ctx.now);
+      for (let n = all.length - 1; !r.ok && n >= 0; n--) r = planBracket(s.teams, all.slice(0, n), ctx.rng, ctx.now);
+      if (!r.ok) fail(r.reason);
+      const plan = (r as Extract<typeof r, { ok: true }>).plan;
+      s.matches = structuredClone(plan.matches);
+      s.wildcards = structuredClone(plan.wildcards);
+      for (const m of [...s.matches].sort((x, y) => x.round - y.round)) refresh(s, m, ev, ctx);
+      log('late_add', {
+        personId: cmd.personId,
+        after: { name, gender: cmd.gender, redrawn: true, wildcards: plan.wildcards.length, alternates: s.extras.length - plan.wildcards.length },
+      });
       break;
     }
     default: {
