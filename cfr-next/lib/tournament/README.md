@@ -35,7 +35,8 @@ Participants come from that year's sign-ups (`PERSON#` rows whose activities inc
   - The server enforces the rest: the teammate must be the right gender, have lost a game, not be on an active team, and not have re-entered already.
 - **Lanes (boards / pits):** each tournament has a number of lanes, which is how many games can be played at once. Horseshoes uses "Pits" and defaults to 2. Cornhole uses "Boards" and also defaults to 2. A manager can change the count at any time on the tournament page, but never below a lane that has a game on it.
   - Starting a game puts it on a free lane (the manager picks one, or it takes the first free lane). Two games can't share a lane, and nothing can start while every lane is busy. A live game can be moved to a free lane.
-  - The Matches tab lists each lane with its current game. An open lane shows the next ready game for it, and the rest are listed as "On deck", in bracket order. Wildcard games join the queue once their teammate is picked.
+  - The Matches tab shows **Playing now** (each lane and its game) and **Up next**: the next ready games in bracket order, one per lane (so 2 for horseshoes), even while every lane is busy. Wildcard games join the line once their teammate is picked.
+  - Managers also see **Also ready**: the other games that can be played. If an up-next team isn't there, the manager can start one of those instead. The scoring screen warns that it's skipping ahead, and the skipped game stays at the front of Up next.
 - **Scoring:** the manager starts a game, taps the score up or down (it autosaves for spectators), and then confirms **Finish game**. Reaching the target score never ends a game on its own. Ties are refused. Finishing a game twice with the same score does nothing.
 - **Fixing results:**
   - A manager can fix a result until the winner's next game starts. The right team then moves on.

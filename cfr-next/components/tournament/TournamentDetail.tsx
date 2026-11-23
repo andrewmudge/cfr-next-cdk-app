@@ -219,8 +219,12 @@ function LaneCounter({
 function MatchesView({ view, onOpen, staff }: { view: TournamentView; onOpen: (m: ViewMatch) => void; staff: boolean }) {
   const games = view.matches.filter((m) => m.status !== 'bye');
   const byIdM = new Map(view.matches.map((m) => [m.id, m]));
-  const onDeck = view.onDeck.map((id) => byIdM.get(id)!).filter(Boolean);
-  const playing = view.status === 'IN_PROGRESS' || view.status === 'PAUSED' || view.status === 'READY';
+  const pick = (ids: string[]) => ids.map((id) => byIdM.get(id)!).filter(Boolean);
+  const upNext = pick(view.upNext);
+  const alsoReady = pick(view.onDeck);
+  const underway = view.status === 'IN_PROGRESS' || view.status === 'PAUSED';
+  const playing = underway || view.status === 'READY';
+  const lanesWord = `${view.laneName.toLowerCase()}${view.lanes === 1 ? '' : 's'}`;
   const byRound = useMemo(() => {
     const map = new Map<number, ViewMatch[]>();
     for (const m of [...games].sort((a, b) => a.order - b.order)) map.set(m.round, [...(map.get(m.round) ?? []), m]);
@@ -228,10 +232,13 @@ function MatchesView({ view, onOpen, staff }: { view: TournamentView; onOpen: (m
   }, [games]);
   const byes = view.matches.filter((m) => m.status === 'bye' && m.round === 1);
 
-  const Section = ({ title, list, accent }: { title: string; list: ViewMatch[]; accent?: boolean }) =>
+  const Section = ({ title, list, accent, note }: { title: string; list: ViewMatch[]; accent?: 'red' | 'green'; note?: string }) =>
     list.length ? (
       <section className="space-y-2">
-        <h2 className={cn('text-sm font-bold uppercase tracking-wider', accent ? 'text-red-600' : 'text-slate-500')}>{title}</h2>
+        <h2 className={cn('text-sm font-bold uppercase tracking-wider', accent === 'red' ? 'text-red-600' : accent === 'green' ? 'text-emerald-700' : 'text-slate-500')}>
+          {title}
+        </h2>
+        {note && <p className="text-sm text-slate-500">{note}</p>}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((m) => (
             <MatchCard key={m.id} view={view} m={m} onOpen={onOpen} laneName={view.laneName} />
@@ -239,34 +246,27 @@ function MatchesView({ view, onOpen, staff }: { view: TournamentView; onOpen: (m
         </div>
       </section>
     ) : null;
-  const anyLaneUsed = view.laneBoard.some((b) => b.liveMatchId || b.nextMatchId);
-
   return (
     <div className="space-y-6">
       {view.status === 'PAUSED' && (
         <p className="rounded-xl bg-slate-200 p-3 text-center text-sm font-medium text-slate-700">The tournament is paused for now.</p>
       )}
-      {playing && anyLaneUsed && (
-        <section className="space-y-2" aria-label={`${view.laneName}s`}>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-red-600">On the {view.laneName.toLowerCase()}s</h2>
+      {underway && (
+        <section className="space-y-2" aria-label="Playing now">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-red-600">Playing now</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {view.laneBoard.map((b) => {
-              const m = b.liveMatchId ? byIdM.get(b.liveMatchId) : b.nextMatchId ? byIdM.get(b.nextMatchId) : undefined;
+              const m = b.liveMatchId ? byIdM.get(b.liveMatchId) : undefined;
               return (
                 <div key={b.lane} className="space-y-1">
-                  <p className="flex items-center justify-between px-1 text-xs font-semibold">
-                    <span className="text-slate-700">
-                      {view.laneName} {b.lane}
-                    </span>
-                    <span className={b.liveMatchId ? 'text-red-600' : m ? 'text-emerald-700' : 'text-slate-400'}>
-                      {b.liveMatchId ? 'Playing' : m ? 'Up next' : 'Open'}
-                    </span>
+                  <p className="px-1 text-xs font-semibold text-slate-700">
+                    {view.laneName} {b.lane}
                   </p>
                   {m ? (
                     <MatchCard view={view} m={m} onOpen={onOpen} />
                   ) : (
                     <div className="flex h-[108px] items-center justify-center rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-400">
-                      Nothing ready yet
+                      {view.laneName} {b.lane} is open
                     </div>
                   )}
                 </div>
@@ -275,7 +275,21 @@ function MatchesView({ view, onOpen, staff }: { view: TournamentView; onOpen: (m
           </div>
         </section>
       )}
-      <Section title="On deck" list={onDeck} />
+      {playing && (
+        <Section
+          title="Up next"
+          accent="green"
+          list={upNext}
+          note={underway ? `These go on as ${lanesWord} open up.` : undefined}
+        />
+      )}
+      {playing && staff && (
+        <Section
+          title="Also ready"
+          list={alsoReady}
+          note="If an up-next team isn't here, tap one of these to play it instead."
+        />
+      )}
       {staff && view.wildcards.some((w) => !w.teamId) && (
         <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />

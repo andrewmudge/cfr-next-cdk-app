@@ -366,17 +366,25 @@ describe('lanes (boards / pits)', () => {
     expect(err(() => run(s, { type: 'setLanes', lanes: 2 }, spectator)).code).toBe('forbidden');
   });
 
-  it('up next fills each open lane in play order; the rest are on deck', () => {
+  it('up next is one game per lane, even while every lane is busy; a manager can start a later game early', () => {
     let s = setup(16, 16, { game: 'horseshoes' }); // 8 first-round games, 2 pits
-    let v = buildView(s, 'spectator');
     const order = s.matches.filter((m) => m.status === 'ready').sort((a, b) => a.order - b.order).map((m) => m.id);
-    expect(v.laneBoard.map((b) => b.nextMatchId)).toEqual(order.slice(0, 2));
+    let v = buildView(s, 'spectator');
+    expect(v.upNext).toEqual(order.slice(0, 2));
     expect(v.onDeck).toEqual(order.slice(2));
     s = run(s, { type: 'startMatch', matchId: order[0] }, manager);
+    s = run(s, { type: 'startMatch', matchId: order[1] }, manager);
     v = buildView(s, 'spectator');
-    expect(v.laneBoard[0]).toEqual({ lane: 1, liveMatchId: order[0] });
-    expect(v.laneBoard[1].nextMatchId).toBe(order[1]);
-    expect(v.onDeck).toEqual(order.slice(2));
+    expect(v.laneBoard).toEqual([{ lane: 1, liveMatchId: order[0] }, { lane: 2, liveMatchId: order[1] }]);
+    expect(v.upNext).toEqual(order.slice(2, 4));
+    expect(v.onDeck).toEqual(order.slice(4));
+    // Pit 1 frees up, but the first up-next team isn't here: the manager starts a later game instead.
+    s = run(s, { type: 'completeMatch', matchId: order[0], scoreA: 21, scoreB: 5 }, manager);
+    s = run(s, { type: 'startMatch', matchId: order[5] }, manager);
+    v = buildView(s, 'spectator');
+    expect(v.laneBoard[0]).toEqual({ lane: 1, liveMatchId: order[5] });
+    expect(v.upNext).toEqual(order.slice(2, 4)); // the skipped game keeps its place at the front
+    expect(v.onDeck).toEqual([order[4], order[6], order[7]]);
   });
 
   it('rolling back a live game frees its lane', () => {

@@ -134,8 +134,10 @@ function Control({
   const wildcards = pendingWildcards(view, m);
   const laneWord = view.laneName.toLowerCase();
   const freeLanes = view.laneBoard.filter((b) => !b.liveMatchId).map((b) => b.lane);
-  // The lane this game is queued for, else the first free one.
-  const suggestedLane = view.laneBoard.find((b) => b.nextMatchId === m.id)?.lane ?? freeLanes[0];
+  const suggestedLane = freeLanes[0];
+  const isUpNext = view.upNext.includes(m.id);
+  // Up-next games this one would jump ahead of.
+  const jumping = isUpNext ? [] : view.upNext.map((id) => view.matches.find((x) => x.id === id)).filter((x): x is ViewMatch => !!x);
 
   const run = async (label: string, command: Record<string, unknown> & { type: string }, opts: { version?: boolean } = {}) => {
     setBusy(label);
@@ -185,7 +187,7 @@ function Control({
             Game {m.number} · {m.roundLabel}
           </h1>
           <span className="text-sm">
-            <MatchStatusLabel m={m} />
+            <MatchStatusLabel m={m} upNext={isUpNext} />
           </span>
         </div>
         <p className="text-sm text-slate-500">Games to {view.targetScore}. You decide when it&apos;s over.</p>
@@ -264,7 +266,15 @@ function Control({
             </p>
           ) : (
             <div className="space-y-2">
-              <p className="text-center text-sm font-medium text-slate-600">Start on which {laneWord}?</p>
+              {jumping.length > 0 ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  This game isn&apos;t up next. {jumping.map((x) => `Game ${x.number}`).join(' and ')} {jumping.length === 1 ? 'is' : 'are'} first. Play
+                  this one instead only if {jumping.length === 1 ? 'that' : 'one of those'} team{jumping.length === 1 ? " isn't" : "s isn't"} here. The
+                  skipped game stays at the front of the line.
+                </p>
+              ) : (
+                <p className="text-center text-sm font-medium text-slate-600">Start on which {laneWord}?</p>
+              )}
               <div className={cn('grid gap-2', freeLanes.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
                 {freeLanes.map((lane) => (
                   <Button
@@ -276,7 +286,13 @@ function Control({
                     disabled={!!busy || paused}
                     onClick={() => run('start', { type: 'startMatch', matchId: m.id, lane }, { version: true })}
                   >
-                    {busy === 'start' ? <Loader2 className="h-5 w-5 animate-spin" /> : `${view.laneName} ${lane}`}
+                    {busy === 'start' ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : jumping.length > 0 ? (
+                      `Play instead on ${view.laneName} ${lane}`
+                    ) : (
+                      `${view.laneName} ${lane}`
+                    )}
                   </Button>
                 ))}
               </div>

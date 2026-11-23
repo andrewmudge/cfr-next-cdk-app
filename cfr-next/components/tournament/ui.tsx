@@ -114,7 +114,8 @@ export const matchTone = (m: ViewMatch) =>
           ? 'border-dashed border-slate-200 bg-slate-50'
           : 'border-dashed border-slate-300';
 
-export function MatchStatusLabel({ m }: { m: ViewMatch }) {
+/** `upNext`: the game's id is in the view's up-next list. Other ready games just say "Ready". */
+export function MatchStatusLabel({ m, upNext }: { m: ViewMatch; upNext?: boolean }) {
   if (m.status === 'live')
     return (
       <span className="inline-flex items-center gap-1 font-semibold text-red-600">
@@ -122,7 +123,8 @@ export function MatchStatusLabel({ m }: { m: ViewMatch }) {
       </span>
     );
   if (m.status === 'done') return <span className="text-slate-500">Final</span>;
-  if (m.status === 'ready') return <span className="font-medium text-emerald-700">Up next</span>;
+  if (m.status === 'ready')
+    return upNext ? <span className="font-medium text-emerald-700">Up next</span> : <span className="font-medium text-slate-600">Ready</span>;
   if (m.status === 'bye') return <span className="text-slate-400">Bye</span>;
   const wild = m.a.kind === 'wildcard' || m.b.kind === 'wildcard';
   return <span className={wild ? 'text-amber-700' : 'text-slate-400'}>{wild ? 'Waiting for wildcard' : 'Waiting'}</span>;
@@ -137,7 +139,7 @@ export function MatchCard({
   className,
   laneName,
 }: {
-  view: Pick<TournamentView, 'teams'>;
+  view: Pick<TournamentView, 'teams'> & Partial<Pick<TournamentView, 'upNext'>>;
   m: ViewMatch;
   onOpen?: (m: ViewMatch) => void;
   dense?: boolean;
@@ -152,7 +154,7 @@ export function MatchCard({
           {m.status === 'bye' ? m.roundLabel : `Game ${m.number}`}
           {laneName && m.lane && m.status === 'live' && <span className="ml-1 text-red-600">· {laneName} {m.lane}</span>}
         </span>
-        <MatchStatusLabel m={m} />
+        <MatchStatusLabel m={m} upNext={view.upNext?.includes(m.id)} />
       </div>
       {m.status === 'bye' ? (
         <div className={cn('flex items-center text-slate-500', dense ? 'h-16 text-sm' : 'h-20')}>
